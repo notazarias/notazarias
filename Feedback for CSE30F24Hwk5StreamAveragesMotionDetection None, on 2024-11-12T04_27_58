@@ -1,0 +1,3047 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "578e1495",
+   "metadata": {
+    "id": "FzPvvGjVthBE",
+    "notebookgrader": {
+     "id": "d8faa8da6599ea1318c73db13e025588952f9cd5",
+     "readonly": true
+    }
+   },
+   "source": [
+    "# Stream Averages and Motion Detection\n",
+    "\n",
+    "Copyright Luca de Alfaro, 2019-21.\n",
+    "License: [CC-BY-NC-ND](https://creativecommons.org/licenses/by-nc-nd/4.0/)."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2bee6d2a",
+   "metadata": {
+    "id": "YGYc6s3JrPCR",
+    "notebookgrader": {
+     "id": "7e5fa3eb815d38ef81517945cfad200d76e124a7",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Video lecture"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "96364939",
+   "metadata": {
+    "id": "V_x7z0FYuArp",
+    "notebookgrader": {
+     "id": "b02942709932a11d9d09ae4fb415fca677c18ff3",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Suppose you have a series of numbers, and you need to compute their average and standard deviation.  What is a good way for doing this?\n",
+    "The obvious way is to use the [numpy library](https://www.numpy.org), which offers a wealth of functions to operate on matrices, arrays, and much more.\n",
+    "Numpy is one of the fundamental packages of Python, and you would be well advised to browse its documentation and familiarize yourself with what it can do.\n",
+    "With numpy, we can compute average and standard deviation of a list of numbers very simply:\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "31e9b300",
+   "metadata": {
+    "id": "LhwG-OmE0B3A",
+    "notebookgrader": {
+     "id": "1bd5b98a563ae335267d4d47d652d112149e644c",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import numpy as np\n",
+    "import random\n",
+    "from PIL import Image\n",
+    "import requests\n",
+    "from zipfile import ZipFile\n",
+    "from io import BytesIO\n",
+    "import matplotlib.pyplot as plt\n",
+    "from matplotlib import cm"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "35e9210f",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 138,
+     "status": "ok",
+     "timestamp": 1632192865789,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "DL8FKfwdta8h",
+    "notebookgrader": {
+     "id": "c5f4744074cbadac374400713d39dbb437d19c56",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "1d0dcffb-d548-41a9-b587-e735872e650b"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "avg: 2.5714285714285716\n",
+       "std: 0.9035079029052513"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "s = [1., 2., 3., 3., 2., 4., 3.]\n",
+    "print(\"avg:\", np.average(s))\n",
+    "print(\"std:\", np.std(s))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "8550c765",
+   "metadata": {
+    "id": "_uL3XrUdu8G5",
+    "notebookgrader": {
+     "id": "b7d6b4d7bd5c92704fc8e48c7d1a598fb0f7242e",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Stream statistics\n",
+    "\n",
+    "Assume now that the numbers do not form a fixed length sequence, but rather, a stream of numbers, with new numbers always arriving.  The numbers could represent real-time temperature measurements, or water pressure, or electricity usage, or percentages of utilized CPU cycles, and so forth.\n",
+    "What do we do in order to compute their average and standard deviation?\n",
+    "\n",
+    "There are various choices, and the way one does it depends on the application.\n",
+    "It is certainly possible to accummulate all numbers, and then compute their overall average and standard deviation; this allows the computation of statistics that apply to the entire time range for which the data was available.\n",
+    "More commonly, one is interested in knowing the _recent_ aveage and standard deviation, so that one can compare the most recent data with the average of the last day."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "0c3a68e2",
+   "metadata": {
+    "id": "WuumWk-7xK-D",
+    "notebookgrader": {
+     "id": "5bdfb4f08044137594c4054e7a406c016b8a79cc",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Stream Averagerators\n",
+    "\n",
+    "One could implement the code that computes the average of a stream in the same portion of code where one reads the stream, as follows:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "3c40b666",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 352,
+     "status": "ok",
+     "timestamp": 1632192866292,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "wANsfpZZuxhc",
+    "notebookgrader": {
+     "id": "8536cd9dfd80a6128179f2a8b8ba5d4a27cc8552",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "dd1c4413-5374-4e49-9e9a-dbf0eddfa46f"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "avg: 0.28682199332286396\n",
+       "avg: 0.49891887894736703\n",
+       "avg: 0.645048603208899\n",
+       "avg: 0.6753173304705127\n",
+       "avg: 0.6070500202961263\n",
+       "avg: 0.5129180365811429\n",
+       "avg: 0.46245827777234927\n",
+       "avg: 0.501886511545685\n",
+       "avg: 0.5359573126125885\n",
+       "avg: 0.5746192549624654"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def read_stream():\n",
+    "    \"\"\"Reads and returns one number from the stream.\"\"\"\n",
+    "    return random.random()\n",
+    "\n",
+    "def use(x):\n",
+    "    \"\"\"Code to do something with x\"\"\"\n",
+    "    pass\n",
+    "\n",
+    "# Here we accummulate the sequence, so we can average it.\n",
+    "seq = []\n",
+    "\n",
+    "while True:\n",
+    "    x = read_stream()\n",
+    "\n",
+    "    # We add x to the average\n",
+    "    seq.append(x)\n",
+    "    print(\"avg:\", np.average(seq))\n",
+    "    use(x)\n",
+    "\n",
+    "    # This is an example, and I don't what the code to run forever.\n",
+    "    if len(seq) == 10:\n",
+    "        break"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "4805e69e",
+   "metadata": {
+    "id": "Uh0V9HXTy2kV",
+    "notebookgrader": {
+     "id": "b7df17a1a42aa5e53ffd4f8a917ebbf2a51663c5",
+     "readonly": true
+    }
+   },
+   "source": [
+    "However, this approach is horrible in two different ways.  One way is that the implementation is horribly inefficient; our sequence seq will have to hold all the data we read from the stream.  This is bad, and we will fix it later.\n",
+    "\n",
+    "The other way in which this is horrible is that the code to compute the average is intermingled with the code that reads the sequence and passes it to the code that uses it.  It would be much better to separate out the code, for two related reasons.\n",
+    "\n",
+    "**Separation of concerns.** Separating the code makes it easier both to read and to write, because we separate the concerns: when we write the code to compute the average, we can focus on that, disregarding the details of how the stream is read or used; when we write the code that processes the stream, we can focus on that, simply calling a method to compute the average, but disregarding how the average is computed.\n",
+    "Separating the concerns, or dividing the overall coding task into smaller, independent units, is key.  Each person, at any given time, can keep in mind only a fairly small set of facts; indeed, several studies on software verification point out to the fact that in order to write correct code, programmers usually use no more than a dozen facts about the previous code and input, reflecting what likely is an underlying limitation of our brains.  \n",
+    "By focusing on one task at a time, we can apply our full mental powers to that particular task, making it much easier to write its code.\n",
+    "The same goes for reading code: it is much easier to understand code that does one specific thing, than code that mixes multiple goals at a time.\n",
+    "\n",
+    "**Ease of modification.** As we mentioned, there are various ways of computing a stream average: there are more and less efficient implementations, and we can consider the entirety of the data read from the stream, or only the most recent one.  It will be easier to change the implementation if the code for computing the stream average is all in the same place, rather than sprinkled in multiple places that must be tracked and updated.\n",
+    "\n",
+    "For these reasons, we introduce _averagerator_ classes that comput  running averages and standard deviations.\n",
+    "The first we write, _FullAveragerator_, is for computing the statistics of complete sequences.\n",
+    "\n",
+    "The class has one method, _add_, used to add data to it, and two properties, _avg_ and _std_, which return the average and standard deviation so far.\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "a4e6234e",
+   "metadata": {
+    "id": "uB-tMho8yzuY",
+    "notebookgrader": {
+     "id": "8f4340cac48fd7f9d24ea3264abc7a458cfad508",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "class FullAveragerator(object):\n",
+    "\n",
+    "    def __init__(self):\n",
+    "        self.seq = []\n",
+    "\n",
+    "    def add(self, x):\n",
+    "        self.seq.append(x)\n",
+    "\n",
+    "    @property\n",
+    "    def avg(self):\n",
+    "        return np.average(self.seq)\n",
+    "\n",
+    "    @property\n",
+    "    def std(self):\n",
+    "        return np.std(self.seq)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d2c5553f",
+   "metadata": {
+    "id": "NG-RJEUS5vEq",
+    "notebookgrader": {
+     "id": "3914f609bdf7ebe2189b461b2a0b2ccee63907f5",
+     "readonly": true
+    }
+   },
+   "source": [
+    "The previous code can be rewritten like this:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "9ba74762",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 23,
+     "status": "ok",
+     "timestamp": 1632192866297,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "J9QqjgC15t9F",
+    "notebookgrader": {
+     "id": "07b57d64a2cc8849624ea19234928c5ce3301f14",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "b7bb1f5d-7242-46f5-cfb7-95e046b91a71"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "avg: 0.8028783519759763\n",
+       "avg: 0.7385332733691334\n",
+       "avg: 0.7134760071299627\n",
+       "avg: 0.5890192145870145\n",
+       "avg: 0.5101859535687521\n",
+       "avg: 0.5406673361004201\n",
+       "avg: 0.518324021298145\n",
+       "avg: 0.5654503422098065\n",
+       "avg: 0.529882830204564\n",
+       "avg: 0.4885156639052216"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "averagerator = FullAveragerator()\n",
+    "\n",
+    "for _ in range(10):\n",
+    "    x = read_stream()\n",
+    "\n",
+    "    # We add x to the average\n",
+    "    averagerator.add(x)\n",
+    "    print(\"avg:\", averagerator.avg)\n",
+    "    use(x)\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "00819ab1",
+   "metadata": {
+    "id": "TQG6SKfC6smt",
+    "notebookgrader": {
+     "id": "36a24a7e3b84d3ee9117c13084dfc5f7179ddcc4",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Much prettier code, isn't it?  The functionality of the averagerator is now nicely encapsulated, making it easy to improve it for the future."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "de850499",
+   "metadata": {
+    "id": "Bi2F6DzkySnB",
+    "notebookgrader": {
+     "id": "569286fa5a6535d525ce36042224029af22132af",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let's illustrate how the averagerator works with a picture."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "e8cbce00",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 161,
+     "status": "ok",
+     "timestamp": 1632192866446,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "ggubM59WyXqd",
+    "notebookgrader": {
+     "id": "ba532cc7f4a6c957654f4b6b7eae8df8e2ba8a6c",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "719be0c8-a752-45c2-a2ea-32614cad2707"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "averagerator = FullAveragerator()\n",
+    "\n",
+    "xs = []\n",
+    "smooth_xs = []\n",
+    "for _ in range(200):\n",
+    "    x = read_stream()\n",
+    "    xs.append(x)\n",
+    "    averagerator.add(x)\n",
+    "    smooth_xs.append(averagerator.avg)\n",
+    "plt.plot(xs, label=\"xs\")\n",
+    "plt.plot(smooth_xs, label=\"smooth xs\")\n",
+    "plt.legend()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "8915bd22",
+   "metadata": {
+    "id": "64XvKsQM65sU",
+    "notebookgrader": {
+     "id": "237f0c6661a803f94a28b6e1a68b8fee1659003b",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Efficient Stream Averagerator\n",
+    "\n",
+    "The idea in computing a more efficient implementation is to avoid storing the entire sequence, summarizing it instead by aggregate statistics.  The average $E[X]$ of a sequence of $n$ numbers $x_1, x_2, \\ldots, x_n$ can be computed as $S_n / n$, where\n",
+    "$$\n",
+    "S_n = \\sum_{i=1}^n x_i \\; .\n",
+    "$$\n",
+    "When $x_{n+1}$ arrives, all we need to do is compute\n",
+    "$S_{n+1} = x_{n+1} + S_n$, and return the average $S_{n+1} / (n+1)$.\n",
+    "\n",
+    "Thus, we do not need to store the complete sequence to compute the average: we need to store only the sequence length ($n$ above), and the sequence sum ($S_n$ above).\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "67d97408",
+   "metadata": {
+    "id": "NO5SMxFt6GLg",
+    "notebookgrader": {
+     "id": "c885a8a647a1ac49f29037539dc7671ae4b4071b",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "class EfficientFullAveragerator(object):\n",
+    "\n",
+    "    def __init__(self):\n",
+    "        self.sum_x = 0.\n",
+    "        self.n = 0\n",
+    "\n",
+    "    def add(self, x):\n",
+    "        self.sum_x += x\n",
+    "        self.n += 1\n",
+    "\n",
+    "    @property\n",
+    "    def avg(self):\n",
+    "        return self.sum_x / self.n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "4c8bf919",
+   "metadata": {
+    "id": "E0kT6eJq9LPl",
+    "notebookgrader": {
+     "id": "048c31add93c16335e592767b09b87a814bc31e9",
+     "readonly": true
+    }
+   },
+   "source": [
+    "This works, but what about the standard deviation?  \n",
+    "\n",
+    "The standard deviation $s$ is the square root of the variance $v$, and for a series $X = x_1, x_2, \\ldots, x_n$ of numbers, the variance is\n",
+    "\n",
+    "$$\n",
+    "v = E[(X - E[X])^2] = E[(X - \\mu)^2]\n",
+    "$$\n",
+    "\n",
+    "where $\\mu = E[X]$ is the average.\n",
+    "\n",
+    "We cannot use directly this equation.  The problem is that once we receive $x_1, x_2, \\ldots, x_n$, and we want the variance, computing the average $\\mu$ is easy: $\\mu = S_n / n$.  But to compute the variance, the above formula instructs us to compute $(x_1 - \\mu)^2, \\ldots, (x_n - \\mu)^2$, and this we cannot do without remembering the whole sequence $x_1, \\ldots, x_n$.\n",
+    "So let's try to derive a more helpful formula.\n",
+    "\n",
+    "We can write:\n",
+    "\n",
+    "$$\n",
+    "v = E[(X - \\mu)^2] = E[X^2 - 2\\mu X + \\mu^2] = E[X^2] - 2 \\mu E[X] + \\mu^2\n",
+    "= E[X^2] - \\mu^2 \\; ,\n",
+    "$$\n",
+    "\n",
+    "where we have used that $E[X] = \\mu$.\n",
+    "The relation\n",
+    "\n",
+    "$$\n",
+    "E[(X - \\mu)^2] = E[X^2] - \\mu^2 \\; ,\n",
+    "$$\n",
+    "\n",
+    "_is_ suitable to be computed on the fly.\n",
+    "It is just the average of the sequence of squares $x_1^2, x_2^2, \\ldots$ (and we already know how to compute sequence averages), minus $\\mu^2$, which we also already know how to compute.\n",
+    "So, denoting with\n",
+    "\n",
+    "$$\n",
+    "Q_n = \\sum_{i=1}^n x_i^2 \\; ,\n",
+    "$$\n",
+    "\n",
+    "we have:\n",
+    "\n",
+    "$$\n",
+    "E[X^2] = Q_n / n\n",
+    "$$\n",
+    "\n",
+    "and thus:\n",
+    "\n",
+    "$$\n",
+    "v = \\frac{Q_n}{n} - \\mu^2 \\; .\n",
+    "$$\n",
+    "\n",
+    "This we can implement.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "ee1bce8a",
+   "metadata": {
+    "id": "dEnjZgTJ9KHo",
+    "notebookgrader": {
+     "id": "ccd236d86b489638959246f85eff0c644b1e5b68",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "class EfficientFullAveragerator(object):\n",
+    "\n",
+    "    def __init__(self):\n",
+    "        self.sum_x = 0. # S\n",
+    "        self.sum_x_sq = 0. # Q\n",
+    "        self.n = 0\n",
+    "\n",
+    "    def add(self, x):\n",
+    "        # We compute the sum of the x, to compute their average.\n",
+    "        self.sum_x += x\n",
+    "        # Sum of the x^2, so we can later compute the average of the x^2.\n",
+    "        self.sum_x_sq += x * x\n",
+    "        self.n += 1\n",
+    "\n",
+    "    @property\n",
+    "    def avg(self):\n",
+    "        return self.sum_x / self.n\n",
+    "\n",
+    "    @property\n",
+    "    def std(self):\n",
+    "        mu = self.avg # To avoid calling self.avg twice.\n",
+    "        return np.sqrt(self.sum_x_sq / self.n - mu * mu)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "542b38bc",
+   "metadata": {
+    "id": "hPPHhU39AH7J",
+    "notebookgrader": {
+     "id": "1ce8ef31c5ef187601de2c04efa0596b6120049a",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let us play with this implementation."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "f51c2d3f",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 567,
+     "status": "ok",
+     "timestamp": 1632192867005,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "aYlnydi5AHHl",
+    "notebookgrader": {
+     "id": "eb1103d5cc015fe7371d3bf147ee812c6f4f77dc",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "86344e0c-69c0-45f5-c2e6-87828b2dd7aa"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "averagerator = EfficientFullAveragerator()\n",
+    "\n",
+    "xs = []\n",
+    "smooth_xs = []\n",
+    "stdevs = []\n",
+    "for _ in range(200):\n",
+    "    x = read_stream()\n",
+    "    xs.append(x)\n",
+    "    averagerator.add(x)\n",
+    "    smooth_xs.append(averagerator.avg)\n",
+    "    stdevs.append(averagerator.std)\n",
+    "plt.plot(xs, label=\"xs\")\n",
+    "plt.plot(smooth_xs, label=\"smooth xs\")\n",
+    "plt.plot(stdevs, label=\"std\")\n",
+    "plt.legend()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "91a5e895",
+   "metadata": {
+    "id": "xXBYismfA0D9",
+    "notebookgrader": {
+     "id": "127e8239e9d87ebd9f8cb3d7ac635a53bd213bac",
+     "readonly": true
+    }
+   },
+   "source": [
+    "This works, and we can see that the average tends to $0.5$, and the standard deviation tends to $1/\\sqrt{12}$.\n",
+    "This because the input numbers are uniformy distributed between 0 and 1, and:\n",
+    "$$\n",
+    "\\int_0^1 x \\: dx = \\frac{1}{2} \\; , \\qquad \\int_0^1 \\left(x - \\frac{1}{2}\\right)^2 \\: dx = \\frac{1}{12} \\; .\n",
+    "$$\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d6727aae",
+   "metadata": {
+    "id": "5rqvDB8KEs5U",
+    "notebookgrader": {
+     "id": "ac5d2bc47e2f9ad8fbb05be19f65084636623d3b",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Sliding Windows Averagerators\n",
+    "\n",
+    "Often, we are more interested in the recent average than in the average since the start of a stream.\n",
+    "This is especially true if we plan to use the average and standard deviation to identify outliers (possibly incorrect data) in a data stream.\n",
+    "\n",
+    "Consider, for instance, a temperature sensor giving us readings of outside air temperature once per minute.\n",
+    "If one considers statistics that span more than one year, a location might have an average temperature of 15 (Celsius; all temperatures in the following are in Celsius), and a standard deviation of 15, accommodating Winter temperatures slightly above freezing and Summer ones around 30C.\n",
+    "\n",
+    "Yet, if we saw input data:\n",
+    "$$\n",
+    "      12.3, 12.3, 12.4, 12.3, 12.4, 12.4, 23.3, 17.5, 12.4, 12.5, 12.6\n",
+    "$$\n",
+    "we should be suspicious: outside air temperature does not change by more than 10C in a minute.\n",
+    "We do not know what happened --- someone touched the temperature sensor with a finger, perhaps --- but we know that the data is probably not reflective of air temperature.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "aa826e48",
+   "metadata": {
+    "id": "zYqnbeJXzmPb",
+    "notebookgrader": {
+     "id": "ea4e4ce25612062f9e4354cf3427abfc3f6a35ab",
+     "readonly": true
+    }
+   },
+   "source": [
+    "As a concrete example, let us simulate a sensor that senses air temperature.  Air temperature varies between 5C and 25C, as a sine wave (just to make it easy to draw); the sensor has a noise of $\\pm 1C$ on each measurement."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "ee52b122",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 372,
+     "status": "ok",
+     "timestamp": 1632192867370,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "RmAZlqvu1BFB",
+    "notebookgrader": {
+     "id": "5d8c218039a9355bd50b80e459361275778cc9f5",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "c70c0056-5111-4c7f-c267-3697bbc59abc"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def noisy_temp(noise=1., d=0.05):\n",
+    "    t = -d # time\n",
+    "    while True:\n",
+    "        t += d # We increment time.\n",
+    "        yield 15. + 10. * np.sin(t) + noise * 2.  * (random.random() - 0.5)\n",
+    "\n",
+    "# Let's show how this looks.\n",
+    "xs = []\n",
+    "for x in noisy_temp():\n",
+    "    xs.append(x)\n",
+    "    if len(xs) == 400:\n",
+    "        break\n",
+    "plt.plot(xs)\n",
+    "plt.show()\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "46a8ccd7",
+   "metadata": {
+    "id": "LHSebqkX2Y3L",
+    "notebookgrader": {
+     "id": "a30f0a41eb61629a9475ce09135ed90080f0986b",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let us construct a version of this signal with outliers, where once in 50 readings, about, the sensor has an error that can be up to 10C."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "id": "f05859a1",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 31,
+     "status": "ok",
+     "timestamp": 1632192867373,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "E6egs5on2rWf",
+    "notebookgrader": {
+     "id": "987431fc145b2b341345e75880a8e1ec2474ed13",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "2d5d5786-55c8-4847-bf90-6652642f2ca3"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def noisy_temp_with_outliers(noise=1., d=0.05, outlier_prob=0.02, outlier_size=10.):\n",
+    "    t = -d # time\n",
+    "    while True:\n",
+    "        t += d # We increment time.\n",
+    "        x = 15. + 10. * np.sin(t) + noise * 2.  * (random.random() - 0.5)\n",
+    "        # Adds the outlier, with a certain probability.\n",
+    "        if random.random() < outlier_prob:\n",
+    "            x += outlier_size * 2. * (random.random() - 0.5)\n",
+    "        yield x\n",
+    "\n",
+    "# Let's show how this looks.\n",
+    "xs = []\n",
+    "for x in noisy_temp_with_outliers():\n",
+    "    xs.append(x)\n",
+    "    if len(xs) == 400:\n",
+    "        break\n",
+    "plt.plot(xs)\n",
+    "plt.show()\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "33f33ced",
+   "metadata": {
+    "id": "5-Ko8gB23Y8a",
+    "notebookgrader": {
+     "id": "7b6dbb51f9b8db7f74036bb324cf0e8a18e61442",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let us compare these outliers, with the average and standard deviation of the whole series."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "297105f8",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 169,
+     "status": "ok",
+     "timestamp": 1632192867528,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "KSj07wEp3hAQ",
+    "notebookgrader": {
+     "id": "d251b3096d6f7f68c231c6d19b171efe1ed3c1f2",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "17aafa42-ce2e-44a5-9c1f-ed6574b9b595"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "xs = []\n",
+    "avgs = []\n",
+    "stds = []\n",
+    "a = EfficientFullAveragerator()\n",
+    "for x in noisy_temp_with_outliers():\n",
+    "    xs.append(x)\n",
+    "    a.add(x)\n",
+    "    avgs.append(a.avg)\n",
+    "    stds.append(a.std)\n",
+    "    if len(xs) == 400:\n",
+    "        break\n",
+    "plt.plot(xs, label='x')\n",
+    "plt.plot(avgs, label='average')\n",
+    "# Let's move to numpy to compute average plus and minus standard deviation.\n",
+    "a_avg = np.array(avgs)\n",
+    "a_std = np.array(stds)\n",
+    "plt.plot(a_avg + a_std, label='avg + std', color='g')\n",
+    "plt.plot(a_avg - a_std, label='avg - std', color='g')\n",
+    "plt.legend()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "8ca483cb",
+   "metadata": {
+    "id": "hIH0edQE43ZZ",
+    "notebookgrader": {
+     "id": "03ef32c9e26f61eaa6a458172554a3b5517536b0",
+     "readonly": true
+    }
+   },
+   "source": [
+    "As we see:\n",
+    "* The temperature, even when read without outliers, often differs from the average by more than the overall standard deviation, and this simply due to the daily temperature variations.\n",
+    "* The outlier themselves, even though quite visible to our eye, often differ from the average by _less_ than the standard deviation, just because the standard deviation is really rather large, as it is influenced not only by sensor noise, but also by the daily temperature cycle."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e51a94d3",
+   "metadata": {
+    "id": "KOO0g7UtyAJZ",
+    "notebookgrader": {
+     "id": "30daa3a2481e44f8ff8c0bd0afd2797b2b001549",
+     "readonly": true
+    }
+   },
+   "source": [
+    "To detect these outliers, and change in conditions, it is far more useful to have the average and standard deviation of _recent_ data only, rather than computed over the whole series.\n",
+    "A _sliding window averagerator_ considers, in the computation of averages and standard deviations, only the most recent $N$ data values, for a specified $N$."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c02ec269",
+   "metadata": {
+    "id": "jx_6GnA8PMHr",
+    "notebookgrader": {
+     "id": "7a8a5322651087c8813a0bf812537efcc8157f13",
+     "readonly": true
+    }
+   },
+   "source": [
+    "**Exercise:** Complete the code below, defining a sliding window averagerator.  The class should have methods:\n",
+    "\n",
+    "* `__init__(self, window_size)` to initialize;\n",
+    "* `add(self, x)`, to add a value\n",
+    "\n",
+    "as well as properties `avg` and `std`, as in the previous averagerator classes."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "id": "14a04121",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 191,
+     "status": "ok",
+     "timestamp": 1731385164801,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "OZKM51ZEQRfO",
+    "notebookgrader": {
+     "id": "f11aa4258929504785fbfce901b97bc6f54e36c4",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Exercise: implement a `SlidingWindowAveragerator`\n",
+    "\n",
+    "class SlidingWindowAveragerator(object):\n",
+    "\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    def __init__ (self, window_size):\n",
+    "        self.window_size = window_size\n",
+    "        self.seq = []\n",
+    "        self.sum_x = 0.\n",
+    "        self.sum_x_sq = 0.\n",
+    "        self.n = 0\n",
+    "\n",
+    "\n",
+    "    @property\n",
+    "    def avg(self):\n",
+    "        return self.sum_x / self.n\n",
+    "\n",
+    "    @property\n",
+    "    def std(self):\n",
+    "        mu = self.avg\n",
+    "        return np.sqrt(self.sum_x_sq / self.n - mu * mu) if self.n else 0\n",
+    "        # if self.n == 0:\n",
+    "        #     return 0\n",
+    "\n",
+    "\n",
+    "    def add(self, x):\n",
+    "        self.seq.append(x)\n",
+    "        self.sum_x += x\n",
+    "        self.sum_x_sq += x * x\n",
+    "        self.n += 1\n",
+    "\n",
+    "        if len(self.seq) > self.window_size:\n",
+    "            remov_ele = self.seq.pop(0)\n",
+    "            # self.sum_x -= self.seq[0]  # first value\n",
+    "            self.sum_x -= remov_ele\n",
+    "            # self.sum_x_sq -= self.seq[0] * self.seq[0]\n",
+    "            self.sum_x_sq -= remov_ele * remov_ele\n",
+    "            self.n -= 1\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "id": "98d9f1f4",
+   "metadata": {
+    "cellView": "form",
+    "id": "zgxr-3hyokyO",
+    "notebookgrader": {
+     "id": "eb0dc5747ae33da82ed9fd0e39341a78026179af",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: `SlidingWindowAveragerator`\n",
+    "\n",
+    "# First some simple cases.\n",
+    "sa = SlidingWindowAveragerator(20)\n",
+    "for _ in range(10):\n",
+    "    sa.add(10)\n",
+    "    assert sa.avg == 10\n",
+    "    assert sa.std == 0\n",
+    "\n",
+    "sa = SlidingWindowAveragerator(10)\n",
+    "for _ in range(10):\n",
+    "    sa.add(4)\n",
+    "assert sa.avg == 4\n",
+    "for _ in range(10):\n",
+    "    sa.add(8)\n",
+    "assert sa.avg == 8\n",
+    "assert sa.std == 0\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "id": "c0d9ba37",
+   "metadata": {
+    "cellView": "form",
+    "id": "FfAI9k3PrlY2",
+    "notebookgrader": {
+     "id": "34c9d47ae2a97eff9f5763fd15f5b3230caa9558",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: Now for slightly more complex tests.\n",
+    "\n",
+    "sa = SlidingWindowAveragerator(10)\n",
+    "for i in range(10):\n",
+    "    sa.add(i)\n",
+    "assert sa.avg == 4.5\n",
+    "assert abs(sa.std - 2.87) < 0.1\n",
+    "for i in range(10):\n",
+    "    sa.add(i)\n",
+    "assert sa.avg == 4.5\n",
+    "assert abs(sa.std - 2.87) < 0.1\n",
+    "for _ in range(10):\n",
+    "    sa.add(1)\n",
+    "assert sa.avg == 1\n",
+    "assert sa.std == 0\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "57ef39d0",
+   "metadata": {
+    "id": "qUjEnwrwSWLy",
+    "notebookgrader": {
+     "id": "d3c3731684e01a832a50c42ea6cc52c76f27183d",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Duck Typing\n",
+    "\n",
+    "You may wonder: should we have not defined an abstract _Averagerator_ class, and make all these classes, such as _FullAveragaerator_, _EfficientFullAveragerator_, _SlidingWindowAveragerator_, subclasses of the superclass?\n",
+    "\n",
+    "If we were in a strongly typed language, such as Java, the answer would be a resounding Yes.  In Java, a superclass serves as the common type of all objects belonging to the more specialized classes.  One can then define a method accepting a superclass, say, an _Averagerator_, and then pass to it objects of any of its subclasses.\n",
+    "\n",
+    "In Python, objects are rarely tested for the class to which they belong.  The more common pattern in Python is simply the one of calling methods of objects, assuming the methods do the proper thing.  This approach to type checking (or the lack of it) is sometimes called _duck typing:_ [if it quacks like a duck, and it waddles  like a duck](https://www.youtube.com/watch?v=R6kizqah-Po), it is a duck --- meaning, if the object's methods do the right thing, that suffices for us.\n",
+    "\n",
+    "Thus, in Python, except in special cases, the subclass relationship is useful especially if there is non-trivial shared code between a subclass and its superclass.  This not being the case for the Averagerator classes we have defined so far, we have preferred the simpler approach of defining each class individually, which has the advantage of keeping all the class code in the same place."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1dabbeb3",
+   "metadata": {
+    "id": "LybTKvpkL_Mg",
+    "notebookgrader": {
+     "id": "e5dc4ad525bf1635d8fe5d20682487075f3bdf98",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Discounting Averagerators"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "6b85cee4",
+   "metadata": {
+    "id": "Ttb53NcaMF5a",
+    "notebookgrader": {
+     "id": "1fd8e47b4e3297364a006061818d4c6ed125a38f",
+     "readonly": true
+    }
+   },
+   "source": [
+    "A sliding window abruptly truncates the past: the stream values go from being considered fully considered as part of the average, to being disregarded, in one step.\n",
+    "A consequence of this is that to implement a sliding window average of size $N$, we actually need to store $N$ values: otherwise, we would not know how to remove a value from the sliding window when the value \"falls off\" the window.\n",
+    "Can we do better?  Can we obtain something similar to a sliding window average, but that forgets past values in a smoother way, rather than with an abrupt threshold, and such that the amount of data to remember is independent on window size?\n",
+    "\n",
+    "The answer is Yes.  Given a data stream $x_0, x_1, \\ldots, x_n$, the idea is to give to the most recent value $x_n$ a weight of 1, to $x_{n-1}$ a weight of $\\alpha$ for $\\alpha < 1$, to $x_{n-2}$ weight $\\alpha^2$, and so forth: a value that ocurred $k$ \"times\" ago has weight $\\alpha^k$.\n",
+    "This approach is known as _discounting:_ it is as if the value of the past accumulated experience decreased by a factor of $\\alpha$ upon the arrival of a new data value.\n",
+    "\n",
+    "Aside from being a smoother way to average (the effect of past values slowly decays, rather than abruptly dropping out of a fixed size window), discounted averages are also far more efficient to implement.\n",
+    "The idea, for the average, consists in keeping the running sum of values $S$, and the running sum of weights $W$.  \n",
+    "The average is simply the sum divided by the total weight, or $S/W$.\n",
+    "When a new value $x$ arrives, $S$ and $W$ are updated by first discounting their current values by $\\alpha$, and then adding the contribution of the last value:\n",
+    "\n",
+    "$$\n",
+    "  S := \\alpha S + x \\qquad W := \\alpha W + 1 \\; .\n",
+    "$$\n",
+    "\n",
+    "For the computation of the variance, we proceed in similar fashion.\n",
+    "The implementation is below.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "id": "590c8858",
+   "metadata": {
+    "id": "T3kHvNb-Mmzu",
+    "notebookgrader": {
+     "id": "c51953d2057e48ddc309aec293e47663dbd1adb5",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "class DiscountedAveragerator:\n",
+    "\n",
+    "    def __init__(self, alpha):\n",
+    "        \"\"\"Creates an averagerator with a specified discounting factor alpha.\"\"\"\n",
+    "        self.alpha = alpha\n",
+    "        self.w = 0.\n",
+    "        self.sum_x = 0.\n",
+    "        self.sum_x_sq = 0.\n",
+    "\n",
+    "    def add(self, x):\n",
+    "        self.w = self.alpha * self.w + 1.\n",
+    "        self.sum_x = self.alpha * self.sum_x + x\n",
+    "        self.sum_x_sq = self.alpha * self.sum_x_sq + x * x\n",
+    "\n",
+    "    @property\n",
+    "    def avg(self):\n",
+    "        return self.sum_x / self.w\n",
+    "\n",
+    "    @property\n",
+    "    def std(self):\n",
+    "        mu = self.avg\n",
+    "        # The np.maximum is purely for safety.\n",
+    "        return np.sqrt(np.maximum(0., self.sum_x_sq / self.w - mu * mu))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "ffa2d7ea",
+   "metadata": {
+    "id": "8oNFhvXDcA7h",
+    "notebookgrader": {
+     "id": "21e3eae3ac27f9ae58d4d55b48916f4ebf0e7977",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Data Smoothing\n",
+    "\n",
+    "Running averages can be used for smoothing data.\n",
+    "If you have some background in digital signal theory, a discounted average is a digital filtering operation, whose behavior in the frequency domain can be modeled also with the help of its [_z-transform_](https://en.wikipedia.org/wiki/Z-transform) $1/(1-\\alpha/z)$.\n",
+    "We will be content here with watching it at work.\n",
+    "Let's build a stream where there is a sinusoidal signal, with superimposed noise.  Here, an iterator comes in handy."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "id": "caa6f4a6",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 598,
+     "status": "ok",
+     "timestamp": 1632192868119,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "-lAtVCLkqOIb",
+    "notebookgrader": {
+     "id": "e00499ea468a015acec62bddb8fd048eea948bc7",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "4bde969b-7e6a-457e-8ff8-e33c83857745"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def noisy_sin(noise=1.):\n",
+    "    d = 0.05 # Time increment.\n",
+    "    t = -d # time\n",
+    "    while True:\n",
+    "        t += d # We increment time.\n",
+    "        yield np.sin(t) + noise * (random.random() - 0.5)\n",
+    "\n",
+    "\n",
+    "# Let's display it.\n",
+    "xs = []\n",
+    "for x in noisy_sin():\n",
+    "    xs.append(x)\n",
+    "    if len(xs) == 200:\n",
+    "        break\n",
+    "plt.plot(xs)\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "4d563ed7",
+   "metadata": {
+    "id": "Iwm8vVPTt7so",
+    "notebookgrader": {
+     "id": "3e3c148cfb3db2f3205d6f98d240d0e2b16ade39",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let's apply now our smoothing average with $\\alpha=0.9$, and compare raw and smoothed data."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "id": "8ede1057",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 443,
+     "status": "ok",
+     "timestamp": 1632192868504,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "dPifK-AhuGTp",
+    "notebookgrader": {
+     "id": "9cb9948221167096080e41770fa2caf71138c887",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "bcea0a61-5695-48e3-b584-6c0e018a36d9"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "xs = []\n",
+    "smooth_xs = []\n",
+    "a = DiscountedAveragerator(0.9)\n",
+    "for x in noisy_sin():\n",
+    "    xs.append(x)\n",
+    "    a.add(x)\n",
+    "    smooth_xs.append(a.avg)\n",
+    "    if len(xs) == 200:\n",
+    "        break\n",
+    "plt.plot(xs)\n",
+    "plt.plot(smooth_xs)\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a90aa750",
+   "metadata": {
+    "id": "uyu-3kQ2udyF",
+    "notebookgrader": {
+     "id": "30f1918113f7784a169c7b524296f4df99b27b55",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We see that the output is a smoother, time-delayed, and somewhat contracted (multiplied by a factor smaller than 1) verson of the input.  The time delay and contraction are due to the fact that the average mixes present with past of the sine wave, and would be present even in absence of noise."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "id": "a655e0a8",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 95,
+     "status": "ok",
+     "timestamp": 1632192868507,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "Dy__EkBnvLaY",
+    "notebookgrader": {
+     "id": "bc4e0a3bfde988c938741fa17b7654ffe5f45ad7",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "e7918679-5651-4165-9940-64a11e62f318"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "xs = []\n",
+    "smooth_xs = []\n",
+    "a = DiscountedAveragerator(0.9)\n",
+    "for x in noisy_sin(noise=0.):\n",
+    "    xs.append(x)\n",
+    "    a.add(x)\n",
+    "    smooth_xs.append(a.avg)\n",
+    "    if len(xs) == 200:\n",
+    "        break\n",
+    "plt.plot(xs)\n",
+    "plt.plot(smooth_xs)\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "bb7447e4",
+   "metadata": {
+    "id": "J99cO2_FcDig",
+    "notebookgrader": {
+     "id": "b395faaff7770e2a0babc153618f34f443fa9803",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Outlier Detection\n",
+    "\n",
+    "Let us return to our noisy temperature sensor.  How can we detect the outlier errors?\n",
+    "One simple idea consists in calling an outlier any point that differs from the average by more than, say, two standard deviations.\n",
+    "Let us see how this approach would work."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "id": "e380e31a",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 703,
+     "status": "ok",
+     "timestamp": 1632192869119,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "ocE0SaT9EvWe",
+    "notebookgrader": {
+     "id": "91d66188760ca65602e60956ca7fc9f996ce6004",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "79a86296-ed77-4bfe-f5d8-9a96dc9aec1e"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "a = DiscountedAveragerator(0.9)\n",
+    "\n",
+    "xs = []\n",
+    "avgs = []\n",
+    "stds = []\n",
+    "for x in noisy_temp_with_outliers(d=0.02):\n",
+    "    xs.append(x)\n",
+    "    a.add(x)\n",
+    "    avgs.append(a.avg)\n",
+    "    stds.append(a.std)\n",
+    "    if len(xs) == 400:\n",
+    "        break\n",
+    "plt.plot(xs, label='x')\n",
+    "plt.plot(avgs, label='average')\n",
+    "# Let's move to numpy to compute average plus and minus standard deviation.\n",
+    "a_avg = np.array(avgs)\n",
+    "a_std = np.array(stds)\n",
+    "plt.plot(a_avg + 2. * a_std, label='avg + 2 std', color='g')\n",
+    "plt.plot(a_avg - 2. * a_std, label='avg - 2 std', color='g')\n",
+    "plt.legend()\n",
+    "plt.show()\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "609ef5da",
+   "metadata": {
+    "id": "1cdyw4e6xicd",
+    "notebookgrader": {
+     "id": "c9e31f31e025cf61576d6f1b2fc9e160baf17ed9",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Indeed, this approach would be able to detect most of the large outliers. We can use this idea to define a cleaned version of the data: when a reading is further away than two standard deviations from the average, we replace the reading with the last valid data.  Let us define a _CleanData_ class that does it for us."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2e219465",
+   "metadata": {
+    "id": "NJtW7mXCem2A",
+    "notebookgrader": {
+     "id": "a15c2d3674835bb8676dba735d74d495e15c40d8",
+     "readonly": true
+    }
+   },
+   "source": [
+    "**Exercise:** Use the averagerator to write a class that counts how many spikes there are in the last `n` time units, where `n` is a parameter."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "33840c44",
+   "metadata": {
+    "id": "xHGz2BBK-zca",
+    "notebookgrader": {
+     "id": "e9e05bce24ad04a9d7cb01912124ca50938e325c",
+     "readonly": true
+    }
+   },
+   "source": [
+    "**Exercise:** Complete the following implementation, in which an averagerator is used in order to replace values that are more than num_stds away from the average, with the average itself.\n",
+    "\n",
+    "The `CleanData` class is initialized by passing a discount factor for its averagerator.  \n",
+    "Every piece `x` of data is then filtered via a call to `filter(x, num_stdevs)`; this call returns:\n",
+    "\n",
+    "*  `x` if the value of `x` is closer than `num_stdevs` standard deviations from the running average,\n",
+    "* the running average if the value of `x` differs from the running average by more than `num_stdevs` standard deviations."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "id": "b5268516",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 169,
+     "status": "ok",
+     "timestamp": 1731385329790,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "uNTzaQKz-OFQ",
+    "notebookgrader": {
+     "id": "26fc4038de4ff1d18cf716bbb39a6263fba542b6",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Exercise: Implement the `CleanData` class\n",
+    "\n",
+    "class CleanData(object):\n",
+    "\n",
+    "    def __init__(self, discount_factor):\n",
+    "        \"\"\"\n",
+    "        @param discount_factor: discount factor for the averagerator.\n",
+    "        \"\"\"\n",
+    "        ### YOUR SOLUTION HERE\n",
+    "        self.dicount = discount_factor\n",
+    "        self.avgrate = DiscountedAveragerator(discount_factor)\n",
+    "\n",
+    "\n",
+    "\n",
+    "    def filter(self, x, num_stdevs=2.):\n",
+    "        \"\"\"Returns a filtered value for x.\n",
+    "        @param x: the value to be filtered.\n",
+    "        @param num_stdevs: number of standard deviations from the average\n",
+    "           beyond which data is rejected.\n",
+    "        It can be done in 5 lines of code.\n",
+    "        \"\"\"\n",
+    "        ### YOUR SOLUTION HERE\n",
+    "\n",
+    "        self.avgrate.add(x)\n",
+    "        not_avg = abs(x - self.avgrate.avg)\n",
+    "        NeedsToBe = num_stdevs * self.avgrate.std\n",
+    "        if not_avg <= NeedsToBe:\n",
+    "            return x\n",
+    "        else:\n",
+    "            return self.avgrate.avg\n",
+    "\n",
+    "\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a0987da4",
+   "metadata": {
+    "id": "jSxtvzt_2xBW",
+    "notebookgrader": {
+     "id": "2161fb503a16f9d86c38141aaa4cfd6c581955c9",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let us see how it works, visually:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "id": "9cd0df1e",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 174,
+     "status": "ok",
+     "timestamp": 1632192869287,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "BL4Cx11K2_MT",
+    "notebookgrader": {
+     "id": "608c049f31e6efee26d2539d83942429d441f015",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "649c6e39-7299-4ddf-bb3b-56c243767419"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "a = DiscountedAveragerator(0.9)\n",
+    "xs = []\n",
+    "clean_xs = []\n",
+    "avgs = []\n",
+    "stds = []\n",
+    "cleaner = CleanData(0.9)\n",
+    "for x in noisy_temp_with_outliers(d=0.02):\n",
+    "    xs.append(x)\n",
+    "    a.add(x)\n",
+    "    avgs.append(a.avg)\n",
+    "    stds.append(a.std)\n",
+    "    clean_xs.append(cleaner.filter(x, num_stdevs=2))\n",
+    "    if len(xs) == 400:\n",
+    "        break\n",
+    "plt.plot(xs, label='noisy x')\n",
+    "plt.plot(clean_xs, label='clean x')\n",
+    "# Let's move to numpy to compute average plus and minus standard deviation.\n",
+    "a_avg = np.array(avgs)\n",
+    "a_std = np.array(stds)\n",
+    "plt.plot(a_avg + 2. * a_std, label='avg + 2 std', color='g')\n",
+    "plt.plot(a_avg - 2. * a_std, label='avg - 2 std', color='g')\n",
+    "plt.legend()\n",
+    "plt.show()\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "765e8280",
+   "metadata": {
+    "id": "1PnyvTLJ4g_7",
+    "notebookgrader": {
+     "id": "5d9ecc846055ab07b22ae60e55acbb5677987fcc",
+     "readonly": true
+    }
+   },
+   "source": [
+    "And let us put it through some tests."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "id": "9ec869e7",
+   "metadata": {
+    "cellView": "form",
+    "id": "iLBCnkm24gh6",
+    "notebookgrader": {
+     "id": "7609f51a33a571b15e479aa15a41739eec7030d9",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: `CleanData`\n",
+    "\n",
+    "a = np.zeros(10)\n",
+    "a[3] = 1\n",
+    "a[8] = 10\n",
+    "c = CleanData(0.9)\n",
+    "aa = [c.filter(x) for x in a]\n",
+    "assert max(aa) < 2.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e75b727c",
+   "metadata": {
+    "id": "dInTOILFB7Rp",
+    "notebookgrader": {
+     "id": "d9107a98f0227cef0d5cddf788b76384f1fa02b1",
+     "readonly": true
+    }
+   },
+   "source": [
+    "An alternative idea that seems promising at first thought is to include in the computation of the running average and standard deviation only points that are not outliers.  Let us play with the approach."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "id": "7f44e3e8",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 265
+    },
+    "executionInfo": {
+     "elapsed": 26,
+     "status": "ok",
+     "timestamp": 1632192869291,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "omKK489WCkKD",
+    "notebookgrader": {
+     "id": "9322167edbab29676e1b125bfa6df05112eaa6e3",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "c6038576-5a20-4273-b431-7e62184d5a76"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "a = DiscountedAveragerator(0.9)\n",
+    "\n",
+    "xs = []\n",
+    "avgs = []\n",
+    "stds = []\n",
+    "for x in noisy_temp_with_outliers(d=0.02):\n",
+    "    xs.append(x)\n",
+    "    if len(xs) >= 20:\n",
+    "        # We need enough data to be able to rely on the statistics.\n",
+    "        a_avg, a_std = a.avg, a.std\n",
+    "        x_min, x_max = a_avg - 2 * a_std, a_avg + 2. * a_std\n",
+    "        if x_min < x < x_max:\n",
+    "            # The data is good.\n",
+    "            a.add(x)\n",
+    "    else:\n",
+    "        # We add all data until we have reliable statistics.\n",
+    "        a.add(x)\n",
+    "    avgs.append(a.avg)\n",
+    "    stds.append(a.std)\n",
+    "    if len(xs) == 400:\n",
+    "        break\n",
+    "\n",
+    "plt.plot(xs, label='x')\n",
+    "plt.plot(avgs, label='average')\n",
+    "# Let's move to numpy to compute average plus and minus standard deviation.\n",
+    "a_avg = np.array(avgs)\n",
+    "a_std = np.array(stds)\n",
+    "plt.plot(a_avg + 2. * a_std, label='avg + 2 std', color='g')\n",
+    "plt.plot(a_avg - 2. * a_std, label='avg - 2 std', color='g')\n",
+    "plt.legend()\n",
+    "plt.show()\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a13ebcd1",
+   "metadata": {
+    "id": "QajLWywhDaz5",
+    "notebookgrader": {
+     "id": "075bbba09ca47cb688cac19d538496eab8b768a9",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We see that the problem with this approach is that, should the signal change behavior or become more noisy, or drift from its previous range, we risk disregarding all future data.  Better play it safe and include in the statistics all input, in case what we think of as an outlier is really the first in a series of data with higher noise or drift in them.\n",
+    "\n",
+    "This is one more case in point supporting the author's motto: _when in doubt, be stupid._\n",
+    "\n",
+    "It is often better to take a simpler, more robust approach (in this case, averaging all data) than to try to be smart without understanding all the facets of a problem (in this case, trusting our simple outlier detection to the point of letting it screen even the data we feed to it)."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "59b95002",
+   "metadata": {
+    "id": "1DaqQ4mSMIVg",
+    "notebookgrader": {
+     "id": "76aecf34c5051361a863ccce3a3ccdbf3fc36426",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Motion Detection"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "641b8138",
+   "metadata": {
+    "id": "VI1Omd9PtL8n",
+    "notebookgrader": {
+     "id": "4486553039e78d9bc0d52bf749f603e5efac54f2",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We can use our averagerators to perform motion detection in a sequence of images captured by a webcam.\n",
+    "The idea is this.  Each image will be represented as a H x W x 3 3-d array; H and W are the image height and width, respectively, and 3 is the number of color channels of a RGB image.\n",
+    "\n",
+    "We will compute the discounted average and standard deviations of _every single color pixel_ in the image.  If a pixel has a value that is outside the interval $[\\mu - k\\sigma, \\mu + k\\sigma]$, where $\\mu$ is the pixel average $\\sigma$ is the pixel standard deviation, we detect motion.\n",
+    "Here, $k$ is a sensitivity threshold that specifies how many standard deviations must separate the value of a pixel from its average for us to detect motion."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "bdfb4b90",
+   "metadata": {
+    "id": "VWmQWWNyuJme",
+    "notebookgrader": {
+     "id": "3ae57b0713b32255211da8ff7fa1335b26a0642b",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Computing mean and standard deviation of every pixel sounds like a crazy idea, until we realize that our DiscountedAveragerator essentially does it for us already.  \n",
+    "So far, we have used the DiscountedAveragerator by passing to it a scalar, that is, a floating point number.\n",
+    "If we pass to it a value of _x_ which is a Numpy array, everything works: Numpy will re-interpret our $+$, $-$, $*$ operators as operators betwen arrays, and compute mean and standard deviation as _arrays_, one entry per color pixel, rather than scalars."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "01ab5c16",
+   "metadata": {
+    "id": "nxZtrbQ7ZlA9",
+    "notebookgrader": {
+     "id": "f483f47141138d220cc950050f4c69a517c7d2c8",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Getting the images\n",
+    "\n",
+    "To experiment with motion detection, let us get a series of images captured by a webcam, and convert each image to a numpy matrix.  \n",
+    "We will obtain a list of numpy matrices."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "id": "1bda530a",
+   "metadata": {
+    "id": "mTgnRKNsT1jC",
+    "notebookgrader": {
+     "id": "cf5ded2a568eb3f9b9c5a86e06bfe80ab0295cf5",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Gets the zip file.\n",
+    "ZIP_URL = \"https://storage.googleapis.com/lucadealfaro-share/GardenSequence.zip\"\n",
+    "r = requests.get(ZIP_URL)\n",
+    "# List of images, represented as numpy arrays.\n",
+    "images_as_arrays = []\n",
+    "# Makes a file object of the result.\n",
+    "with ZipFile(BytesIO(r.content)) as myzip:\n",
+    "    for fn in myzip.namelist():\n",
+    "        with myzip.open(fn) as my_image_file:\n",
+    "            img = Image.open(my_image_file)\n",
+    "            # Converts the image to a numpy matrix, and adds it to the list.\n",
+    "            images_as_arrays.append(np.array(img).astype(np.float32))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "aa5b4f0f",
+   "metadata": {
+    "id": "SK3or_D9Z0q2",
+    "notebookgrader": {
+     "id": "6dd41f422948797825b4d98ee19106cc067832e5",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Each numpy 3-d array has shape (Y, X, 3), where Y and X are the dimensions of the image (480 x 640 in our case), and 3 correspons to the three color channels."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 52,
+   "id": "2092ee4c",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 69,
+     "status": "ok",
+     "timestamp": 1632192870848,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "Ci-FfGDsUXq3",
+    "notebookgrader": {
+     "id": "9885c65c62235e1a2b27627a6d20e7bc4b7f05e4",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "92380c9d-529f-446c-f1ab-50f9140c6429"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(480, 640, 3)"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "print(images_as_arrays[0].shape)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 54,
+   "id": "57476520",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 48,
+     "status": "ok",
+     "timestamp": 1632192870850,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "4D3ZpcqbfmWn",
+    "notebookgrader": {
+     "id": "df3a3bc26138e464added780fc9a03038b97592e",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "c727eee2-ffb7-4d7f-acad-ca0eb1ef6053"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "255.0"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "print(images_as_arrays[0][10, 20, 2])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e5061d3a",
+   "metadata": {
+    "id": "sioDeYIythej",
+    "notebookgrader": {
+     "id": "f94e1dbc3d5c26b939d0b9a312cdf54527cbaa1d",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Feeding images to the discounted averagerator"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "567dc45f",
+   "metadata": {
+    "id": "1DEi8tTctnbq",
+    "notebookgrader": {
+     "id": "d4cb21dc49e07ac9372cc85d4b4cea8862979011",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Crazy as it might sound, we can feed images to our discounted averagerator.  This is yet another application of [duck typing](https://www.youtube.com/watch?v=R6kizqah-Po): look at the discounted averagerator code again:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "id": "5f895c05",
+   "metadata": {
+    "id": "MD5ni-ORuMml",
+    "notebookgrader": {
+     "id": "e80c3b134a7ab2cc5ee7ba7f671c1409f54e33ad",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "class DiscountedAveragerator:\n",
+    "\n",
+    "    def __init__(self, alpha):\n",
+    "        \"\"\"Creates an averagerator with a specified discounting factor alpha.\"\"\"\n",
+    "        self.alpha = alpha\n",
+    "        self.w = 0.\n",
+    "        self.sum_x = 0.\n",
+    "        self.sum_x_sq = 0.\n",
+    "\n",
+    "    def add(self, x):\n",
+    "        self.w = self.alpha * self.w + 1.\n",
+    "        self.sum_x = self.alpha * self.sum_x + x\n",
+    "        self.sum_x_sq = self.alpha * self.sum_x_sq + x * x\n",
+    "\n",
+    "    @property\n",
+    "    def avg(self):\n",
+    "        return self.sum_x / self.w\n",
+    "\n",
+    "    @property\n",
+    "    def std(self):\n",
+    "        mu = self.avg\n",
+    "        # The np.maximum is purely for safety.\n",
+    "        return np.sqrt(np.maximum(0., self.sum_x_sq / self.w - mu * mu))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2faddcff",
+   "metadata": {
+    "id": "Vabir-icuNKz",
+    "notebookgrader": {
+     "id": "ecac86de2bcefad001ace1ec39daeea4f8bc772e",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Notice that if we pass an image for x -- a 3D Numpy array -- everything works!  Consider line 12, for instance.\n",
+    "\n",
+    "The first time it is executed, we compute the new `self.sum_x` as the sum of `self.alpha * self.sum_x` plus `x`.  Initially, `self.sum_x` is 0, and `self.alpha * self.sum_x` is also 0, and miraculously for us,\n",
+    "\n",
+    "    0 + x\n",
+    "\n",
+    "evaluates to the _3D array_ `x`, because Numpy is kind enough to broadcast (replicate) the `0` and add it to all elements of the array!\n",
+    "\n",
+    "When line 12 is executed again, `self.sum_x` is a 3D array, and `self.alpha * self.sum_x` can again be computed thanks to Numpy's broadcasting `self.alpha` to the 3D array.  The result can then be added to `x`.\n",
+    "\n",
+    "In truth, one still has to take a little bit of care.  Once we feed an `x` of shape (say) (3, 480, 640), we cannot then feed an image of size (3, 1024, 1024) -- the mathematical operations will not work between matrices of different sizes!  So in a more robust implementation, it might be better to reset the running averages if the shape of the image changes.  But this will do for now."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1406678e",
+   "metadata": {
+    "id": "p0a4B3sRv220",
+    "notebookgrader": {
+     "id": "f304ceaf1443f9072e5ce1e13b1e90e31ae2288a",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let us test it:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 58,
+   "id": "6bb5902f",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 1000
+    },
+    "executionInfo": {
+     "elapsed": 1867,
+     "status": "ok",
+     "timestamp": 1632192872693,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "zf5BZps_uL5E",
+    "notebookgrader": {
+     "id": "679e6d4f64a23498a1f612d5e2f52f7a6da52703",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "71a2797e-ac56-46b5-97a6-99e1712119fa"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "First image:\n",
+       "Discounted average of first 10 images:\n",
+       "Standard deviation: red\n",
+       "Standard deviation: green\n",
+       "Standard deviation: blue"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "av = DiscountedAveragerator(0.9)\n",
+    "for img in images_as_arrays[:10]:\n",
+    "    av.add(img)\n",
+    "\n",
+    "print(\"First image:\")\n",
+    "plt.imshow(images_as_arrays[0] / 255)\n",
+    "plt.show()\n",
+    "print(\"Discounted average of first 10 images:\")\n",
+    "plt.imshow(av.avg / 255)\n",
+    "plt.show()\n",
+    "print(\"Standard deviation: red\")\n",
+    "plt.imshow(av.std[:, :, 0], cmap='inferno')\n",
+    "plt.colorbar()\n",
+    "plt.show()\n",
+    "print(\"Standard deviation: green\")\n",
+    "plt.imshow(av.std[:, :, 1], cmap='inferno')\n",
+    "plt.colorbar()\n",
+    "plt.show()\n",
+    "print(\"Standard deviation: blue\")\n",
+    "plt.imshow(av.std[:, :, 2], cmap='inferno')\n",
+    "plt.colorbar()\n",
+    "plt.show()\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "22ad3e1b",
+   "metadata": {
+    "id": "anMrnYpLtePe",
+    "notebookgrader": {
+     "id": "1e0ea8b1aef523272ace2ed0c4d2c0f568cba27c",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### The MotionDetection class"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "bd30ad42",
+   "metadata": {
+    "id": "gk0nPzrdaPhg",
+    "notebookgrader": {
+     "id": "b903dab4b3beae5fdb1e9e7a5c3dcf5e872ec89c",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We can use the discounted averagerator to construct  a `MotionDetection` class.\n",
+    "\n",
+    "We will feed images to `MotionDetection`, one by one; the images will be of size $h \\times w \\times c$, where $h$ is the height, $w$ the width, and $c$ the color depth: in our case, $480 \\times 640 \\times 3$ (but please, write you class without hardcoding $h$ and $w$).\n",
+    "\n",
+    "As we feed each image, `MotionDetection` computes which pixels of the image have one of the 3 color channels that are outside the $\\mu \\pm \\kappa \\sigma$ interval, where $\\mu$ is the average, $\\sigma$ is the standard deviation, and $\\kappa$ is a parameter; we will use $\\kappa = 4$ in our experiments, thus detecting motion if values deviate from the average by more than 4 standard deviations.  The result is a $h \\times w \\times c$ boolean matrix filled with True/False values.\n",
+    "\n",
+    "To perform the above check, you can use a trick: if `a` and `b` are Numpy arrays of the same size, then `a > b` returns an array of the same size, filled with True and False:\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 60,
+   "id": "6632e8b8",
+   "metadata": {
+    "cellView": "both",
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 93,
+     "status": "ok",
+     "timestamp": 1632192872694,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "DytJgkaD4mUO",
+    "notebookgrader": {
+     "id": "48bb9f498a0a2d1742ef045bba23ebcf8aeb3757",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "5aac3f36-3e33-4ed9-9ac8-b42ffb092464"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "a: [[[0.86690206 0.69554651 0.6047681 ]\n",
+       "  [0.50980491 0.1547676  0.07817828]\n",
+       "  [0.77222805 0.77402663 0.73294165]\n",
+       "  [0.64829095 0.54785637 0.75078174]\n",
+       "  [0.22959993 0.87864716 0.85886701]]\n",
+       "\n",
+       " [[0.15868593 0.7341494  0.19149621]\n",
+       "  [0.06356096 0.73611126 0.56410433]\n",
+       "  [0.4138217  0.13558785 0.89380963]\n",
+       "  [0.4853928  0.58006146 0.37009925]\n",
+       "  [0.71289445 0.11981913 0.96146201]]\n",
+       "\n",
+       " [[0.73808578 0.23590865 0.43323822]\n",
+       "  [0.89402861 0.10587659 0.7711309 ]\n",
+       "  [0.1336471  0.37057834 0.38490876]\n",
+       "  [0.17344517 0.89150014 0.51819813]\n",
+       "  [0.08868844 0.64754242 0.33439697]]\n",
+       "\n",
+       " [[0.98743145 0.28727103 0.01842438]\n",
+       "  [0.31791574 0.66971769 0.98362559]\n",
+       "  [0.11137184 0.20586626 0.52513296]\n",
+       "  [0.91879037 0.69668484 0.40966108]\n",
+       "  [0.78816987 0.48973375 0.98155476]]]\n",
+       "b: [[[0.4282269  0.94219384 0.1383982 ]\n",
+       "  [0.48174924 0.12702911 0.37401085]\n",
+       "  [0.36293684 0.47227306 0.18391382]\n",
+       "  [0.69951154 0.22164601 0.64640013]\n",
+       "  [0.59996902 0.1091712  0.21696552]]\n",
+       "\n",
+       " [[0.29630738 0.9706857  0.67904227]\n",
+       "  [0.37114318 0.38129688 0.44623974]\n",
+       "  [0.55167194 0.78215811 0.36025297]\n",
+       "  [0.47360262 0.19067401 0.02600042]\n",
+       "  [0.91944947 0.09537741 0.79258271]]\n",
+       "\n",
+       " [[0.65797354 0.73105509 0.65592689]\n",
+       "  [0.54470202 0.04757538 0.74571136]\n",
+       "  [0.2823247  0.19751723 0.75187627]\n",
+       "  [0.02344367 0.43606272 0.69647573]\n",
+       "  [0.69844711 0.95652976 0.63219451]]\n",
+       "\n",
+       " [[0.22353655 0.59409403 0.25809778]\n",
+       "  [0.96528417 0.41501664 0.69618912]\n",
+       "  [0.30915572 0.81959233 0.98344878]\n",
+       "  [0.44745745 0.32862918 0.26953885]\n",
+       "  [0.12709149 0.24860026 0.54817399]]]\n",
+       "a > b: [[[ True False  True]\n",
+       "  [ True  True False]\n",
+       "  [ True  True  True]\n",
+       "  [False  True  True]\n",
+       "  [False  True  True]]\n",
+       "\n",
+       " [[False False False]\n",
+       "  [False  True  True]\n",
+       "  [False False  True]\n",
+       "  [ True  True  True]\n",
+       "  [False  True  True]]\n",
+       "\n",
+       " [[ True False False]\n",
+       "  [ True  True  True]\n",
+       "  [False  True False]\n",
+       "  [ True  True False]\n",
+       "  [False False False]]\n",
+       "\n",
+       " [[ True False False]\n",
+       "  [False  True  True]\n",
+       "  [False False False]\n",
+       "  [ True  True  True]\n",
+       "  [ True  True  True]]]"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "a = np.random.random((4, 5, 3))\n",
+    "b = np.random.random((4, 5, 3))\n",
+    "print(\"a:\", a)\n",
+    "print(\"b:\", b)\n",
+    "print(\"a > b:\", a > b)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "cf17c642",
+   "metadata": {
+    "id": "Qj-HmvpR8YTU",
+    "notebookgrader": {
+     "id": "c14dfaec9ed02ae80e3933396ebc608ac49a8ed3",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Moreover, if you have two arrays of the same size, you can compute their _or_ via `np.logical_or`:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 62,
+   "id": "ea8f5973",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 81,
+     "status": "ok",
+     "timestamp": 1632192872695,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "9_DPeEO68h49",
+    "notebookgrader": {
+     "id": "aaf6c5b52d06249c2f7d5844596ea7486a62d169",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "bc722428-5ed5-4e89-e96a-2710812f6c49"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "a = np.random.random((4, 5)) > 0.7\n",
+    "b = np.random.random((4, 5)) > 0.7\n",
+    "np.logical_or(a, b)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "ded6d16b",
+   "metadata": {
+    "id": "nKpT7aJB4lG-",
+    "notebookgrader": {
+     "id": "107d8976ce6676241586c7e836e19813c3b42498",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Finally, we take the union of the motion detections over the three color channels, obtaining a boolean 2-d array of size $h \\times w$.\n",
+    "This array will contain the motion detection for each image.\n",
+    "To take the union, you can use `np.max`, specifying the max to be taken over axis 2, which is the one for color:\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 64,
+   "id": "2c469717",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 65,
+     "status": "ok",
+     "timestamp": 1632192872698,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "w8GycILR7QIr",
+    "notebookgrader": {
+     "id": "855128607d5b028bf81718ba2c799b66f9e8cdc5",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "4a5b5ff5-24bc-4399-849a-a9e05bc21c3c"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "aa shape: (4, 5, 3)\n",
+       "b shape: (4, 5)\n",
+       "b: [[ True  True  True  True False]\n",
+       " [ True  True  True False  True]\n",
+       " [False False False False  True]\n",
+       " [ True  True  True False  True]]"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "a = np.random.random((4, 5, 3))\n",
+    "aa = a > 0.8\n",
+    "print(\"aa shape:\", aa.shape)\n",
+    "b = np.max(aa, axis=2)\n",
+    "print(\"b shape:\", b.shape)\n",
+    "print(\"b:\", b)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d17c4e1a",
+   "metadata": {
+    "id": "83DfPKrriSLf",
+    "notebookgrader": {
+     "id": "3579bc23a00d812d07b8cf20096544c58c0e9707",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We let you build the class `MotionDetection`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 66,
+   "id": "4e4b6d0e",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 166,
+     "status": "ok",
+     "timestamp": 1731385642486,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "n9u3QRLL5pj4",
+    "notebookgrader": {
+     "id": "896f798a0a7f97673c6f3a1539315f77505214fb",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title `MotionDetection` class\n",
+    "\n",
+    "class MotionDetection(object):\n",
+    "\n",
+    "    def __init__(self, num_sigmas=4., discount=0.96):\n",
+    "        \"\"\"Motion detection implemented via averagerator.\n",
+    "        @param num_sigmas: by how many standard deviations should a pixel\n",
+    "            differ from the average for motion to be detected.  This is\n",
+    "            the \\kappa of the above explanation.\n",
+    "        @param discount: discount factor for the averagerator.\n",
+    "        \"\"\"\n",
+    "        ### YOUR SOLUTION HERE\n",
+    "        self.num_sigmas = num_sigmas\n",
+    "        self.discount = discount\n",
+    "        self.avgrate = DiscountedAveragerator(discount)\n",
+    "\n",
+    "    def detect_motion(self, img):\n",
+    "        \"\"\"Detects motion.\n",
+    "        @param img: an h x w x 3 image.\n",
+    "        @returns: an h x w boolean matrix, indicating where motion occurred.\n",
+    "        A pixel is considered a motion pixel if one of its color bands deviates\n",
+    "        by more than num_sigmas standard deviations from the average.\"\"\"\n",
+    "        ### YOUR SOLUTION HERE\n",
+    "        self.avgrate.add(img)\n",
+    "        fi = self.avgrate.avg\n",
+    "        std = self.avgrate.std\n",
+    "\n",
+    "        # motion = np.any(np.abs(img - fi) > self.num_sigmas * std, axis=2)\n",
+    "        n2 = np.abs(img - fi)\n",
+    "        outThres = self.num_sigmas * std\n",
+    "        pages = n2 > outThres\n",
+    "        motion = np.max(pages, axis=2)\n",
+    "\n",
+    "\n",
+    "        return motion\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "0b53714c",
+   "metadata": {
+    "id": "33vKZyiGBwoU",
+    "notebookgrader": {
+     "id": "05b47f9a64de6872cc7b76a3969ba37637f968f7",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let's write a `detect_motion` function to facilitate our experiments.  It will take a list of images, and compute the motion detection of each.  If the motion detection contains more than 500 motion pixels, it puts the detection, and the index of the image, into a list of results."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 68,
+   "id": "8489e995",
+   "metadata": {
+    "id": "E_WO_DVmZfsP",
+    "notebookgrader": {
+     "id": "5a95de2b1e4a4c9f30ce85158c8aa9491b138ca0",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def detect_motion(image_list, num_sigmas=4., discount=0.96):\n",
+    "    \"\"\"Takes as input:\n",
+    "    @param image_list: a list of images, all of the same size.\n",
+    "    @param num_sigmas: a parameter specifying how many standard deviations a\n",
+    "        pixel should be to count as detected motion.\n",
+    "    @param discount: the discount factor for the averagerator.\n",
+    "    \"\"\"\n",
+    "    detector = MotionDetection(num_sigmas=num_sigmas, discount=discount)\n",
+    "    detected_motion = []\n",
+    "    for i, img in enumerate(image_list):\n",
+    "        motion = detector.detect_motion(img)\n",
+    "        if np.sum(motion) > 500:\n",
+    "            detected_motion.append((i, motion))\n",
+    "    return detected_motion"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 70,
+   "id": "6d52ece6",
+   "metadata": {
+    "id": "7GGXe5Nie8Tp",
+    "notebookgrader": {
+     "id": "f1a263b4d91feea7990b7573184a7397811dd4d1",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Compute the motion detections.\n",
+    "motions = detect_motion(images_as_arrays[:60])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2e245599",
+   "metadata": {
+    "id": "wSjrK-Q_hVqp",
+    "notebookgrader": {
+     "id": "19aff7149a1b70de0e66406621a1f4d5f67f96ec",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We can finally visualize the detected motions."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 72,
+   "id": "5debb002",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 1000
+    },
+    "executionInfo": {
+     "elapsed": 4040,
+     "status": "ok",
+     "timestamp": 1632192878279,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "s6PMqqxrhLP6",
+    "notebookgrader": {
+     "id": "ba1689f8cdcfc805d73d88f23400e045b8621a93",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "a50597ef-38bb-45a3-ecb1-4bfb6a861748"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "Motion at image 1 : 559 ------------------------------------\n",
+       "Motion at image 47 : 773 ------------------------------------\n",
+       "Motion at image 48 : 3339 ------------------------------------\n",
+       "Motion at image 49 : 2073 ------------------------------------\n",
+       "Motion at image 57 : 2653 ------------------------------------\n",
+       "Motion at image 58 : 1181 ------------------------------------\n",
+       "Motion at image 59 : 886 ------------------------------------"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "for i, m in motions:\n",
+    "    # We only print images where there are at least 500 pixels of motion.\n",
+    "    if np.sum(m) > 500:\n",
+    "        print(\"Motion at image\", i, \":\", np.sum(m), \"------------------------------------\")\n",
+    "        # We first show the image, for reference.\n",
+    "        plt.imshow(images_as_arrays[i] / 255)\n",
+    "        plt.show()\n",
+    "        # And then the motion detection.\n",
+    "        plt.imshow(m)\n",
+    "        plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "b8d9dc12",
+   "metadata": {
+    "id": "PiZhe5AgEYSJ",
+    "notebookgrader": {
+     "id": "8bd3adf893906cbf3c891cdd61cbf86e7dc17087",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Here are some final tests.\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 74,
+   "id": "d9cfc849",
+   "metadata": {
+    "cellView": "form",
+    "id": "f159V4mrEgTE",
+    "notebookgrader": {
+     "id": "d4c561007a0664539fb326fd1780af381f0349bb",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: motion detection\n",
+    "\n",
+    "motions = detect_motion(images_as_arrays[:60])\n",
+    "motion_idxs = [i for i, _ in motions]\n",
+    "assert motion_idxs == [1, 47, 48, 49, 57, 58, 59], motion_idxs\n",
+    "assert np.sum(motions[6][1]) == 886, np.sum(motions[6][1])\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "8f349abd",
+   "metadata": {
+    "id": "QoaI846WnPD2",
+    "notebookgrader": {
+     "id": "605739a6a371e0ebd66e8d1736533aef856f9528",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We can see that the motion detection does a very reasonable job of detecting the passing cars and bycicle, while almost entirely suppressing the tree that is shaking in the wind.  As the tree shaking is constant, its pixels have very high standard deviation.\n",
+    "If we plot the standard deviation of each pixel, we get a very good impression of how much noise or regular motion took place at that pixel."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 76,
+   "id": "a48fea3a",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 509
+    },
+    "executionInfo": {
+     "elapsed": 1322,
+     "status": "ok",
+     "timestamp": 1632192884271,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "3TdoUj_2p_fT",
+    "notebookgrader": {
+     "id": "7b6aade6df7089177472c5cfdab314b84bf90f72",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "96cf6352-8047-4b07-b542-c2a9bfe81edb"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "a = DiscountedAveragerator(0.96)\n",
+    "for i, img in enumerate(images_as_arrays):\n",
+    "    a.add(img)\n",
+    "# We display the final sigma.\n",
+    "sigma = np.max(a.std, axis=2)\n",
+    "plt.imshow(sigma, cmap='gnuplot')\n",
+    "plt.colorbar()\n",
+    "plt.show()\n",
+    "# Let's compare with the last image.\n",
+    "plt.imshow(images_as_arrays[-1] / 255)\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "061e4d51",
+   "metadata": {
+    "id": "ehqAlK-6sTnq",
+    "notebookgrader": {
+     "id": "3e152b27c81aed909f75810ee690685453ae14ff",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We see how the constantly-shaking trees give rise by far to the greatest pixel standard deviation."
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

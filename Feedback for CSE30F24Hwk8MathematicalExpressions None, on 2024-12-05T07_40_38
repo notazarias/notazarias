@@ -1,0 +1,2811 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "7ac00fef",
+   "metadata": {
+    "id": "yWPsbcfHnC66",
+    "notebookgrader": {
+     "id": "749ce6e0807d160232baca340f03c4cbf3c820f3",
+     "readonly": true
+    }
+   },
+   "source": [
+    "# Mathematical Expressions\n",
+    "\n",
+    "Copyright Luca de Alfaro, 2019-21.\n",
+    "License: [CC-BY-NC-ND](https://creativecommons.org/licenses/by-nc-nd/4.0/)."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "dad0d875",
+   "metadata": {
+    "id": "pJiyCHnRCrV0",
+    "notebookgrader": {
+     "id": "15400aa444047d55a7df7170a1d6072bdf2faedd",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We will develop a data structure to represent arithmetic expressions containing variables, such as $3 + 4$ or $2 + x * (1 - y)$.  \n",
+    "\n",
+    "What is an expression?  An expression consists of one of these:\n",
+    "\n",
+    "\n",
+    "1. A number\n",
+    "2. A variable\n",
+    "3. If $e_1$ and $e_2$ are expressions, then $e_1 + e_2$, $e_1 - e_2$, $e_1 * e_2$, and $e_1 / e_2$ are also expressions.\n",
+    "\n",
+    "Formally, the set of expressions is the _least_ set constructed according to the rules above.\n",
+    "\n",
+    "Thus, an expression can be either a constant, representing numbers and variables, or a composite expression, consisting of an operator, a left expression, and a right expression.  \n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9375a05a",
+   "metadata": {
+    "id": "za5yc-jbRzXN",
+    "notebookgrader": {
+     "id": "fce7e631bdb076055c126d190429ba0ab7db7165",
+     "readonly": true
+    }
+   },
+   "source": [
+    "There are (at least) two ways of representing expressions. The simplest way is to represent expressions as trees, and define operations on them.\n",
+    "The more sophisticated way consists in representing expressions via classes: there will be one class for variable and constants, and one class representing composite expressions; both of these classes will be subclasses of a generic \"expression\" class.\n",
+    "\n",
+    "In this chapter, we will represent expression as trees, to gain experience with writing recursive functions on trees; in the next chapter, we will show how to represent them more elegantly as classes."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "335b0496",
+   "metadata": {
+    "id": "sSDqJv4gRsP_",
+    "notebookgrader": {
+     "id": "87208bfe4c58eb4bd103c440e031bca6acd3741f",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We will represent expressions as trees.  A number will be represented via a number; a variable via a string, and the expression $e_1 \\odot e_2$ via the tuple $(\\odot, e_1, e_2)$, for $\\odot \\in \\{+, -, *, / \\}$.\n",
+    "\n",
+    "For example, we will represent $2 * (x + 1)$ via:\n",
+    "\n",
+    "    ('*', 2, ('+', 'x', 1))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "0d22d888",
+   "metadata": {
+    "id": "bHwc93woS4dP",
+    "notebookgrader": {
+     "id": "95ca786defa3a23e589c68faebf008edf8847288",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "e = ('*', 2, ('+', 'x', 1))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "fd22abb1",
+   "metadata": {
+    "id": "S4wfKgE0aNPN",
+    "notebookgrader": {
+     "id": "cb7caf8845046256286275b0d1c19881e67d3e72",
+     "readonly": true
+    }
+   },
+   "source": [
+    "In particular, we will consider expressions built out of the four arithmetic operators `\"+\"`, `\"-\"`, `\"*\"`, `\"/\"`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "7281dae6",
+   "metadata": {
+    "id": "Zt5Dlw0sx2nb",
+    "notebookgrader": {
+     "id": "0dfb82be0969ab41043064698fc395ce202729c8",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import math\n",
+    "import random"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1355183b",
+   "metadata": {
+    "id": "HlOkESdcSWfN",
+    "notebookgrader": {
+     "id": "0e571df5abf05e4c9414a02f4eefa8ca259153e3",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### A compute function\n",
+    "\n",
+    "Let us define a function compute() that takes one such expression, and returns the expression obtained by performing all possible numerical computation.\n",
+    "We consider first the simple case of an expression where the only operators that can appear are `+` and `-`, and where there are no variables.  "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e0a458d4",
+   "metadata": {
+    "id": "QW5xgyDDc4Jk",
+    "notebookgrader": {
+     "id": "139ad5954e8bc8d2238a4dbe6b1c3b4d30c846d8",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let us create an exception to raise when we cannot interpret an expression."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "7c6cb18b",
+   "metadata": {
+    "id": "CoB_ysCyaNPN",
+    "notebookgrader": {
+     "id": "0a2ac83def557f6357447d44f243e671d099e631",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "class IllegalOperator(Exception):\n",
+    "    pass"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e97da2c4",
+   "metadata": {
+    "id": "9mexkqSieiFm",
+    "notebookgrader": {
+     "id": "a7a17b423df710df91f32ccd62a1ffdbf5db0031",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let us define a helper function `calc`, which takes as argument an operator and two numbers, and computes the required operation.  It will make it easier to write the rest of the code."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "4a5890e8",
+   "metadata": {
+    "id": "S3OBrGyKexNG",
+    "notebookgrader": {
+     "id": "b2c1088728eb71680b159ad529e31320af1d469e",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def calc(op, left, right):\n",
+    "    if op == \"+\":\n",
+    "        return left + right\n",
+    "    elif op == \"-\":\n",
+    "        return left - right\n",
+    "    elif op == \"*\":\n",
+    "        return left * right\n",
+    "    elif op == \"/\":\n",
+    "        return left / right\n",
+    "    else:\n",
+    "        raise IllegalOperator(op)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "ec97a35e",
+   "metadata": {
+    "id": "c2AnBPoZ8kKl",
+    "notebookgrader": {
+     "id": "14294179065b8f0504c70b1afb267196a98956ac",
+     "readonly": true
+    }
+   },
+   "source": [
+    "With this, we can write our compute method as follows."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "33960144",
+   "metadata": {
+    "id": "THXWDQgraNPO",
+    "notebookgrader": {
+     "id": "94dbd7c76ef6765b8caa9b1bcceeff4ee9ccf29c",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def compute(e):\n",
+    "    if isinstance(e, tuple):\n",
+    "        # We have an expression.\n",
+    "        op, l, r = e\n",
+    "        # We compute the subexpressions.\n",
+    "        ll = compute(l)\n",
+    "        rr = compute(r)\n",
+    "        # And on the basis of those, the whole expression.\n",
+    "        return calc(op, ll, rr)\n",
+    "    else:\n",
+    "        # base expression; just return the number.\n",
+    "        return e"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "47349d2c",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 17,
+     "status": "ok",
+     "timestamp": 1632952256223,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "o0sgm5DSaNPO",
+    "notebookgrader": {
+     "id": "5b71b3610acdff96628224ec7bca70c559cfdea3",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "4a6ff267-8d99-4a4a-906e-7a9567f1dfe8"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "compute((\"+\", 4, 5))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "31a9fe89",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 13,
+     "status": "ok",
+     "timestamp": 1632952256224,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "2xFwX91HaNPQ",
+    "notebookgrader": {
+     "id": "e281b1162ace9befda6cd4cfac2e7224e910377b",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "f7b586e7-8b4e-4ae1-861f-cb9d2b3f1860"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "compute((\"+\", (\"-\", 3, 1), (\"+\", 4, 9)))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2f9eb476",
+   "metadata": {
+    "id": "ihPGVm05aNPR",
+    "notebookgrader": {
+     "id": "daf8ae78f1d583d7c59283ed250856fabc23c7c6",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Expressions with variables"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a3b446b3",
+   "metadata": {
+    "id": "sy3q8qpFaNPR",
+    "notebookgrader": {
+     "id": "5f489114f050005d9354958b4c455c1b8e13e4b4",
+     "readonly": true
+    }
+   },
+   "source": [
+    "If an expression can have variables, we can distinguish three types of expressions:\n",
+    "\n",
+    "* Numbers\n",
+    "* Variables\n",
+    "* Composite expressions.\n",
+    "\n",
+    "To facilitate writing code, let us define for you three helper functions that tell us the type of an expression."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "d859a56c",
+   "metadata": {
+    "id": "EjZ7HEdTaNPR",
+    "notebookgrader": {
+     "id": "5edc2ec151184bbe089f7a3a3c9880930cbd222f",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "from numbers import Number # The mother class of all numbers.\n",
+    "\n",
+    "def isnumber(e):\n",
+    "    return isinstance(e, Number)\n",
+    "\n",
+    "def isvariable(e):\n",
+    "    return isinstance(e, str)\n",
+    "\n",
+    "def iscomposite(e):\n",
+    "    return isinstance(e, tuple)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "4004cd69",
+   "metadata": {
+    "id": "SBRAg8xOaNPS",
+    "notebookgrader": {
+     "id": "2f18a47e1591eeaf1ad7be47d5ca8574c2f88c5b",
+     "readonly": true
+    }
+   },
+   "source": [
+    "The idea we use to simplify an expression is the following:\n",
+    "\n",
+    "* If the expression is a Number, you return a number: it's already simplified.\n",
+    "* If the expression is a variable, you return the variable (that is, the expression unchanged); there is nothing to be done.\n",
+    "* If the expression is an operation, such as \"+\", \"-\", ..., then you consider the right and left children, and you reason:\n",
+    "    * If all the two children are numbers, then you can compute the operation and return the result.\n",
+    "    * Otherwise, again, there is nothing that can be done, and you return the expression unchanged.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "29344d60",
+   "metadata": {
+    "id": "GqnHDAhLTkNw",
+    "notebookgrader": {
+     "id": "06e5393fb877b0437420badc3d4058306b79eefc",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def simplify(e):\n",
+    "    if isinstance(e, tuple):\n",
+    "        op, l, r = e\n",
+    "        # We simplify the children expressions.\n",
+    "        ll = simplify(l)\n",
+    "        rr = simplify(r)\n",
+    "        # We compute the expression if we can.\n",
+    "        if isnumber(ll) and isnumber(rr):\n",
+    "            return calc(op, ll, rr)\n",
+    "        else:\n",
+    "            return (op, ll, rr)\n",
+    "    else:\n",
+    "        # Leaf. No simplification is possible.\n",
+    "        return e"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "0e50c851",
+   "metadata": {
+    "id": "RcCiYzRmVZzg",
+    "notebookgrader": {
+     "id": "94abdefa72fdff48bcbddbf312770fcea2427195",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let's see how this works."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "5bc03d93",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 21,
+     "status": "ok",
+     "timestamp": 1632952256389,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "V_nrLXGKVdEa",
+    "notebookgrader": {
+     "id": "caff81ad36c7826480f7e57ce9ce8e3c6f3f94f9",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "0656a4c3-5864-4206-a3fc-e576c5d170a6"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "simplify(3)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "id": "f7599829",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 18,
+     "status": "ok",
+     "timestamp": 1632952256390,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "Q3Q1lpvrf6dZ",
+    "notebookgrader": {
+     "id": "64d505313ca0a9fec583f3c6722f11fe2d8b36bc",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "2daab2bf-478d-4a26-dbef-5ca521b481f1"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "simplify((\"+\", \"x\", 1))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2252de67",
+   "metadata": {
+    "id": "N-xvAH9ygB4d",
+    "notebookgrader": {
+     "id": "20bc653180935cd105086e88d26d36002e831e10",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Yes, there was nothing we could simplify.  Let's try now with something we can simplify:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "59ae8ef2",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 15,
+     "status": "ok",
+     "timestamp": 1632952256390,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "Linas4T1gIBj",
+    "notebookgrader": {
+     "id": "13a1a88dc2e28035b7975589f98e3a64f1a86cef",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "c104a692-73ce-4e04-beea-dc792ab23a62"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "simplify(('-', 5, 4))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "5f43b787",
+   "metadata": {
+    "id": "WVSpAaJ2gTK-",
+    "notebookgrader": {
+     "id": "d9ea03771c29059b801ad9248d96272f80a35f0a",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Can we simplify bigger expressions?"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "id": "63d48384",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 12,
+     "status": "ok",
+     "timestamp": 1632952256391,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "jji5cRHPVgBH",
+    "notebookgrader": {
+     "id": "6c0030ab0cd98094bb1bc98d6ce328f032b2ffb1",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "08414100-21b6-4d0c-b2b8-afa5314d7cc0"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "simplify( ('+', 6, ('-', 7, 2)) )"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "ef6314ad",
+   "metadata": {
+    "id": "5uJD4QQ0V9Qw",
+    "notebookgrader": {
+     "id": "d7d744efe1fb47bca5aa443265237dd18ad3f290",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Evaluating expressions with respect to a variable valuation.\n",
+    "\n",
+    "The function `simplify` above can perform all numerical computations, but stops whenever it encounters a variable. It cannot do any better, in fact, because it does not know the values of variables.\n",
+    "\n",
+    "If we specify values for variables, we can then use those values in the computation, replacing each variable whose value is specified with the value itself.\n",
+    "\n",
+    "A _variable valuation_ is a mapping from variables to their values; we can represent it simply as a dictionary associating to each variable a number:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "id": "3cbdf775",
+   "metadata": {
+    "id": "7zu31eQHV19b",
+    "notebookgrader": {
+     "id": "a18cc46b786ecef36257834e7a4afc9a01b38ea2",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "varval = {'x': 3, 'y': 8}"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "929933fb",
+   "metadata": {
+    "id": "kfL7B4QrYew_",
+    "notebookgrader": {
+     "id": "340a67e366a4803072644b129df7d62fbda389cc",
+     "readonly": true
+    }
+   },
+   "source": [
+    "You can extend the evaluation function to take as input a variable valuation.  The idea is that, when you find a variable, you try to see whether its value is specified in the variable valuation.  If it is, you can replace the variable with the value, and carry on.  If it is not, you leave the variable as it is, since you cannot evaluate it.\n",
+    "\n",
+    "To check if a variable (a string) `s` is in a dictionary `d`, you can test\n",
+    "\n",
+    "    s in d\n",
+    "\n",
+    "and to get the value, in case it is present, you can just do `d[s]` of course.  We let you develop the code."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "id": "f1481024",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 4,
+     "status": "ok",
+     "timestamp": 1733384412047,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "mTEPJzxVYo4T",
+    "notebookgrader": {
+     "id": "99e10f783dff4268796923868fae6c6975625e70",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Evaluating an expression with respect to a variable evaluation\n",
+    "\n",
+    "def compute(e, varval={}):\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    if isinstance(e, tuple):\n",
+    "        op, l, r = e\n",
+    "        # We simplify the children expressions.\n",
+    "        ll = compute(l, varval)\n",
+    "        rr = compute(r, varval)\n",
+    "        # We compute the expression if we can.\n",
+    "        if isnumber(ll) and isnumber(rr):\n",
+    "            return calc(op, ll, rr)\n",
+    "        else:\n",
+    "            return (op, ll, rr)\n",
+    "        # rr = simplify(r)\n",
+    "        # We compute the expression if we can.\n",
+    "        # if isnumber(ll) and isnumber(rr):\n",
+    "        #     return calc(op, ll, rr)\n",
+    "        # else:\n",
+    "        #     return (op, ll, rr)\n",
+    "        #else: # This else is unnecessary and causing the error\n",
+    "        # Leaf. No simplification is possible.\n",
+    "        #return e #This return is unnecessary and could cause issues\n",
+    "    elif isvariable(e): # Fixed the indentation here to align with 'if isinstance(e, tuple):'\n",
+    "        if e in varval:\n",
+    "            return varval[e]\n",
+    "        else:\n",
+    "            return e\n",
+    "    else:\n",
+    "        return e"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f01b3ca2",
+   "metadata": {
+    "id": "Uxzal9fhm4mL",
+    "notebookgrader": {
+     "id": "2701deb159a411ee251fa92220b77f35c53ae7d3",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let us play with this."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "id": "ac5b33c7",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 148,
+     "status": "ok",
+     "timestamp": 1632952256531,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "_7388c6wZCsI",
+    "notebookgrader": {
+     "id": "52938d472f8b73df942b73d11dd8016546fee43d",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "865fd2d3-0145-4cda-8cd1-b0857aaa685a"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "('*', 2, ('+', 'x', 1))\n",
+       "14"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "e = ('*', 2, ('+', 'x', ('-', 3, 2)))\n",
+    "print(compute(e))\n",
+    "print(compute(e, varval={'x': 6}))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "6ccaa2e0",
+   "metadata": {
+    "id": "bbY26cYrckMy",
+    "notebookgrader": {
+     "id": "fceea9ebc3b2ecb646c75e9c08ef3ae43d4147de",
+     "readonly": true
+    }
+   },
+   "source": [
+    "If we provide the values for only some of the variables, the compute function defined above, will plug in the values for those variables and perform all computations possible.  Of course, if the expression contains variables for which the valuation does not specify a value, the resulting expression will still contain those variables: it will not be simply a number.  In computer science, evaluating an expression as far as possible using the values for a subset of the variables is knwon as _partial evaluation_."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "id": "7ccf4f2f",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 9,
+     "status": "ok",
+     "timestamp": 1632952256532,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "JaaftA4xc5Z8",
+    "notebookgrader": {
+     "id": "0f484d9168e4f5b3e0677b0a63122f3a19b79bcf",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "97b16feb-276d-4b0a-f329-32e2c84898e4"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "('+', ('-', 'y', 3), 8)\n",
+       "('+', 0, ('*', 'x', 4))\n",
+       "8"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "e = ('+', ('-', 'y', 3), ('*', 'x', 4))\n",
+    "print(compute(e, varval={'x': 2}))\n",
+    "print(compute(e, varval={'y': 3}))\n",
+    "print(compute(e, varval={'x': 2, 'y': 3}))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "adf168ab",
+   "metadata": {
+    "id": "DbRADnSklaZW",
+    "notebookgrader": {
+     "id": "85ebceb7ac8bbddc9cb1edf23624c9f7f83990e5",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## When are two expressions equal?\n",
+    "\n",
+    "> _Or: it's better to be lucky than to be smart._\n",
+    "\n",
+    "> _Or: if you don't know how to do it right, do it at random._\n",
+    "\n",
+    "> _Or: the power of randomization._"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2876bfc5",
+   "metadata": {
+    "id": "kBY1fr6ZpTOy",
+    "notebookgrader": {
+     "id": "ca3f4e9114f8e0268366c10dc28e330f9b7cdc6f",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We now consider the following problem: given two expressions $e$ and $f$, how can we decide whether they are equal in value, that is, whether they yield always the same value for all values of the variables?\n",
+    "\n",
+    "This _\"value equality\"_ is a different notion from the structural equality we defined before.  For instance, the two expressions `(\"+\", \"x\", 1)` and `(\"-\", (*, 2, \"x\"), \"x\")` are not structurally equal, but they are equal in values.  \n",
+    "\n",
+    "How can we test for value equality of expressions?  There are two ways: the high road, and the pirate road. Of course, we take the pirate road.  \n",
+    "\n",
+    "The high-road approach consists in trying to demonstrate, in some way, that the two expressions are equal.  One way of doing so would be to define a set of [rewriting rules](https://en.wikipedia.org/wiki/Rewriting) for expressions, that try to transform one expression into the other; this would mimick the process often done by hand to show that two expressions are equal.  Another way would be to use theorem provers that can reason about expressions and real numbers, such as [PVS](https://pvs.csl.sri.com).  The problem is that these approaches are a lot of work.  Is there a way to be lazy, and still get the job done?\n",
+    "\n",
+    "There is, it turns out.  Suppose you have two expressions $f, g$ containing variable $x$ only.  The idea is that if $f$ and $g$ are built with the usual operators of algebra, it is exceedingly unlikely for $f$ and $g$ to give the same value  many values of $x$, and yet not be always equal.  This would not be true if our expressions could contain if-then-else statements, but for the operators we defined so far, it holds.  Indeed, one could be more precise, and try to come up with a theorem of the form:\n",
+    "\n",
+    "> If $f$ and $g$ have \"zerosity\" $n$, and are equal for $n+1$ values of $x$, then they are equal for all values of $x$.\n",
+    "\n",
+    "We could then try to define the \"zerosity\" of an expression to make this hold: for example, for two polynomials of degree at most $d$, once you show that they are equal for $d+1$ points, they must be equal everywhere ([why?](https://en.wikipedia.org/wiki/Fundamental_theorem_of_algebra)).  But this again would be a smart approach, and we are trying to see if we can solve the problem while being as stupid as possible.  So our idea will simply be: pick 1000 values of $x$ at random; if the two expressions are equal for all the values, then they must be equal everywhere.  This is a somewhat special case of a [Monte Carlo method](https://en.wikipedia.org/wiki/Monte_Carlo_method), a method used to estimate the probability of complex phenomena (where expression equality is our phenomenon).\n",
+    "\n",
+    "There are only two wrinkles with this.  The first is that an expression can contain many variables, and we have to try to value assignments for all of the variables.  This is easy to overcome; we just need some helper function that gives us the set of variables in a function.  The second wrinkle is: how do we generate the possible value assignments?  How big do these values need to be on average?  According to what probability distribution?  We could dive into a lot of theory and reasoning about how to compute appropriate probability distributions, but since our goal is to be stupid, we will use one of the simplest distributions with infinite domain: the Gaussian one.\n",
+    "\n",
+    "Let us start by writing the function `variables` such that, if `e` is an expression, `variables(e)` is the set of variables that appear in it."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "id": "a0fd6ef4",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 2,
+     "status": "ok",
+     "timestamp": 1733384412047,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "0bfnUYB7vflh",
+    "notebookgrader": {
+     "id": "756566edee2316bde27ff8e354cc1766e4b7988e",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Exercise: define `variables`\n",
+    "\n",
+    "### YOUR SOLUTION HERE\n",
+    "def variables(e):\n",
+    "    if isvariable(e):\n",
+    "        return {e}\n",
+    "    elif iscomposite(e):\n",
+    "        op, l, r = e\n",
+    "        return variables(l).union(variables(r))\n",
+    "    else:\n",
+    "        return set()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "id": "b6a14de4",
+   "metadata": {
+    "cellView": "form",
+    "id": "YLG8HtwUw3al",
+    "notebookgrader": {
+     "id": "e930c92257d01debad2a8869918e7a653a25c099",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 5,
+     "readonly": true,
+     "test_points": 5
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 5/5 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 5 points: `Expr.variables`\n",
+    "\n",
+    "e = ('*', ('+', 'x', 2), ('/', 'x', 'yay'))\n",
+    "assert variables(e) == {'x', 'yay'}\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f237746e",
+   "metadata": {
+    "id": "laGDC-xDzNaW",
+    "notebookgrader": {
+     "id": "3cc64fb5acfa775ab3592e80adb5d1e5be74c456",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Now we let you write the `value_equality` method.  \n",
+    "Given the two expressions $e$ and $f$, first compute the set of variables $V$ that appear in either $e$ or $f$.\n",
+    "Then, the idea consists in performing `num_sample` times the following test for equality:\n",
+    "\n",
+    "* First, produce a variable assignment (a dictionary) mapping each variable in $V$ to a random value.  Choose these random values from the gaussian distribution centered around 0 and with standard deviation 10 (for instance; any continuous distribution with infinite domain would work).  You can obtain such numbers using [`random.gauss(0, 10)`](https://docs.python.org/3/library/random.html#random.gauss).\n",
+    "* Then, compute the values of $e$ and $f$ with respect to that variable evaluation.  If the values are closer than a specified tolerance `tolerance`, you consider $e$ and $f$ equal (for that variable valuation).  Otherwise, you can stop and return that $e$ and $f$ are different.\n",
+    "\n",
+    "If you can repeat the process `num_sample` times, and $e$ and $f$ are considered equal every time, then you declare them equal."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "id": "a1339a83",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 2,
+     "status": "ok",
+     "timestamp": 1733384412047,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "aYyggFqszT65",
+    "notebookgrader": {
+     "id": "848b7a17882128d0c5b2c7c611e56edcee891852",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Exercise: implementation of value equality\n",
+    "\n",
+    "def value_equality(e, f, num_samples=1000, tolerance=1e-6):\n",
+    "    \"\"\"Return True if the two expressions self and other are numerically\n",
+    "    equivalent.  Equivalence is tested by generating\n",
+    "    num_samples assignments, and checking that equality holds\n",
+    "    for all of them.  Equality is checked up to tolerance, that is,\n",
+    "    the values of the two expressions have to be closer than tolerance.\n",
+    "    It can be done in less than 10 lines of code.\"\"\"\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    if e == f:\n",
+    "        return True\n",
+    "        if type(e) != type(f) and (isinstance(e, (int, float, str)) or isinstance(f, (int, float, str))):\n",
+    "            return False\n",
+    "\n",
+    "    # Define a helper function to evaluate an expression\n",
+    "    def evaluate(expr, assignment):\n",
+    "        if isinstance(expr, (int, float)):\n",
+    "            return expr\n",
+    "        if isinstance(expr, str):\n",
+    "            return assignment.get(expr, expr)  # Return the variable's value or itself\n",
+    "        op, left, right = expr\n",
+    "        if op == '+':\n",
+    "            return evaluate(left, assignment) + evaluate(right, assignment)\n",
+    "        if op == '-':\n",
+    "            return evaluate(left, assignment) - evaluate(right, assignment)\n",
+    "        if op == '*':\n",
+    "            return evaluate(left, assignment) * evaluate(right, assignment)\n",
+    "        if op == '/':\n",
+    "            try:\n",
+    "                return evaluate(left, assignment) / evaluate(right, assignment)\n",
+    "            except ZeroDivisionError:\n",
+    "                return float('inf')  # Handle division by zero\n",
+    "\n",
+    "    # Generate random assignments and check for equality\n",
+    "    variables_list = list(variables(e) | variables(f)) # Get all the variables of e and f\n",
+    "    for _ in range(num_samples):\n",
+    "        assignment = {var: random.uniform(-100, 100) for var in variables_list}  # Generate random values for variables\n",
+    "        try:\n",
+    "            val1 = evaluate(e, assignment)\n",
+    "            val2 = evaluate(f, assignment)\n",
+    "            #print(val1, val2) # Print the values for diagnosis\n",
+    "            if abs(val1 - val2) > tolerance:\n",
+    "                return False\n",
+    "        except (TypeError, ValueError):\n",
+    "            return False  # Handles cases where evaluation fails due to type mismatch\n",
+    "    return True  # If all samples pass, the expressions are considered equivalent\n",
+    "\n",
+    "# def variables(e):\n",
+    "#     if isinstance(e, str) and e.isalpha(): # Changed to check if a string is a variable based on it being alphabetic\n",
+    "#         return {e}\n",
+    "#     elif isinstance(e, tuple):\n",
+    "#         op, l, r = e\n",
+    "#         return variables(l).union(variables(r))\n",
+    "#     else:\n",
+    "#         return set()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "id": "79b2ec05",
+   "metadata": {
+    "cellView": "form",
+    "id": "v06HF0qVy-G4",
+    "notebookgrader": {
+     "id": "6d9c32e5b45b236d0f05c50862b3d50b84f20e66",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: value equality\n",
+    "\n",
+    "assert value_equality('x', 'x')\n",
+    "assert value_equality(3, 3)\n",
+    "assert not value_equality(3, 'x')\n",
+    "\n",
+    "e1 = ('+', ('*', 'x', 1), ('*', 'y', 0))\n",
+    "e2 = 'x'\n",
+    "assert value_equality(e1, e2) == True\n",
+    "\n",
+    "e3 = ('/', ('*', 'x', 'x'), ('*', 'x', 1))\n",
+    "e3b = ('/', ('*', 'x', 'y'), ('*', 'x', 1))\n",
+    "assert value_equality(e1, e3) == True\n",
+    "assert not value_equality(e1, e3b)\n",
+    "\n",
+    "e4 = ('/', 'y', 2)\n",
+    "assert value_equality(e1, e4) == False\n",
+    "assert value_equality(e3, e4) == False\n",
+    "\n",
+    "e5 = (\"+\", \"cat\", (\"-\", \"dog\", \"dog\"))\n",
+    "assert value_equality(e5, \"cat\") == True\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "321e9e42",
+   "metadata": {
+    "id": "46YYp0Rz1I47",
+    "notebookgrader": {
+     "id": "5daf780287f01905fe10e1c57c878a29075cea50",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Symbolic Expressions\n",
+    "\n",
+    "The notation we developed enables the representation of _symbolic expressions:_ expressions in which not only numbers appear, but also symbols.  Accordingly, we can perform _symbolic_ operations on the expressions: operations that encode what you do with pencil and paper when you work on an expression.\n",
+    "\n",
+    "Our first symbolic operations will be the implementation of _derivatives._"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c23f110a",
+   "metadata": {
+    "id": "40R8vQfp5Z_k",
+    "notebookgrader": {
+     "id": "3e69ad5b1cf62518e93aebf4b590f1ce93af88b9",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Derivatives\n",
+    "\n",
+    "Given an expression $f$ and a variable $x$, we can compute symbolically the (partial) derivative\n",
+    "\n",
+    "$$\n",
+    "\\frac{\\partial f}{\\partial x}\n",
+    "$$\n",
+    "\n",
+    "of $f$ with respect to $x$.\n",
+    "For instance:\n",
+    "\n",
+    "$$\n",
+    "\\begin{align*}\n",
+    "\\frac{\\partial}{\\partial x}(x^2 + 3y + 4) & = 2x \\\\[1ex]\n",
+    "\\frac{\\partial}{\\partial x}(x^2y + xy^2 + z) & = 2yx + y^2 + z \\; .\n",
+    "\\end{align*}\n",
+    "$$\n",
+    "\n",
+    "Here, the \"partial\" in partial derivative simply means: if you need to take the derivative with respect to a specific variable, simply treat all other variables as constants.\n",
+    "\n",
+    "Computing symbolic derivatives seems complicated, but we can take it in steps.  Our expression trees have leaves, consisting of\n",
+    "\n",
+    "* numerical constants\n",
+    "* variables\n",
+    "\n",
+    "and operators, corresponding to `+`, `-`, `*`, `/`.\n",
+    "Therefore, we break down the task into the computation of the symbolic derivative for numerical constants, variables, and arithmetic operators.  The cases for the leaf nodes are:  \n",
+    "\n",
+    "* For a constant $c$, $\\partial c / \\partial x = 0$.\n",
+    "* For a variable $y \\neq x$,  $\\partial y / \\partial x = 0$.\n",
+    "* $\\partial x / \\partial x = 1$.\n",
+    "\n",
+    "For operators, we can use:\n",
+    "\n",
+    "$$\n",
+    " \\begin{align*}\n",
+    " \\frac{\\partial}{\\partial x}(f \\pm g) & = \\frac{\\partial f}{\\partial x} \\pm \\frac  {\\partial g}{\\partial x}, \\\\[1ex]\n",
+    " \\frac{\\partial}{\\partial x}(f \\cdot g) & = \\frac{\\partial f}{\\partial x} \\cdot g + f \\cdot \\frac{\\partial g}{\\partial x}, \\\\[1ex]\n",
+    " \\frac{\\partial}{\\partial x}\\left(\\frac{f}{g}\\right) & = \\frac{\\frac\n",
+    "  {\\partial f}{\\partial x} \\cdot g - f \\cdot \\frac{\\partial g}{\\partial x}}{g^2}.\n",
+    "\\end{align*}\n",
+    "$$"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "cf079d0e",
+   "metadata": {
+    "id": "_a6ajAUFFB0X",
+    "notebookgrader": {
+     "id": "80396f530546c7c143361f670b5ced4a21b11a04",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let's start from a leaf expression.  The function `derivate_leaf` takes as argument an expression that is a leaf, and a variable, and returns the symbolic derivative of the leaf writh respect to the variable."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "id": "6c1aab6f",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 2,
+     "status": "ok",
+     "timestamp": 1733384412199,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "UaqbBnBoFU6f",
+    "notebookgrader": {
+     "id": "d23e080a743ffc9ec06a1edfd83b7e1bbf9a2b02",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Derivation of a leaf expression\n",
+    "\n",
+    "def derivate_leaf(e, x):\n",
+    "    \"\"\"This function takes as input an expression e and a variable x,\n",
+    "    and returns the symbolic derivative of e wrt. x, as an expression.\"\"\"\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    if e == x:\n",
+    "        return 1\n",
+    "    else:\n",
+    "        return 0"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "id": "0cdfab09",
+   "metadata": {
+    "id": "gHg3_zM7FoMT",
+    "notebookgrader": {
+     "id": "6a0d3f899d6d6b9163a1eb229d449164fd546265",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "assert derivate_leaf(\"x\", \"x\") == 1\n",
+    "assert derivate_leaf(\"x\", \"y\") == 0\n",
+    "assert derivate_leaf(\"y\", \"z\") == 0\n",
+    "assert derivate_leaf(4, \"x\") == 0"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "03e5699d",
+   "metadata": {
+    "id": "WmOpRmn4FBBR",
+    "notebookgrader": {
+     "id": "18e9e3334025f17b5c1a16ad48a61d1555d38c4c",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We now let you implement the derivative of a general expression.  The function is recursive: for instance, if the expression is (`*`, $f$, $g$), to compute its derivative with respect to a variable $x$, we use:\n",
+    "\n",
+    "$$\n",
+    "\\frac{\\partial}{\\partial x}(f \\cdot g) = \\frac{\\partial f}{\\partial x} \\cdot g + f \\cdot \\frac{\\partial g}{\\partial x}\n",
+    "$$\n",
+    "\n",
+    "and so we need to recursively call symbolic derivation on the $f$ and $g$ sub-expressions, to obtain $\\partial f / \\partial x$ and $\\partial g / \\partial x$, and then produce and return an expression representing the result.\n",
+    "\n",
+    "**Important:** The code for checking expression equality is _not_ able to cope with the commutativity of `+` and `*`.  So, in your solution, please use _exactly_ these forms:\n",
+    "\n",
+    "$$\n",
+    " \\begin{align*}\n",
+    " \\frac{\\partial}{\\partial x}(f \\pm g) & = \\frac{\\partial f}{\\partial x} \\pm \\frac  {\\partial g}{\\partial x}, \\\\[1ex]\n",
+    " \\frac{\\partial}{\\partial x}(f \\cdot g) & = \\frac{\\partial f}{\\partial x} \\cdot g + f \\cdot \\frac{\\partial g}{\\partial x}, \\\\[1ex]\n",
+    " \\frac{\\partial}{\\partial x}\\left(\\frac{f}{g}\\right) & = \\frac{\\frac\n",
+    "  {\\partial f}{\\partial x} \\cdot g - f \\cdot \\frac{\\partial g}{\\partial x}}{g^2}.\n",
+    "\\end{align*}\n",
+    "$$\n",
+    "\n",
+    "and not, for instance, $\\frac{\\partial}{\\partial x}(f \\cdot g) = g \\cdot \\frac{\\partial f}{\\partial x} + f \\cdot \\frac{\\partial g}{\\partial x}$, which is mathematically equivalent, but would be considered different by the tests.\n",
+    "\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "id": "3d845d31",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 178,
+     "status": "ok",
+     "timestamp": 1733384412376,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "tgHAzxw-Ob5G",
+    "notebookgrader": {
+     "id": "0c67c962f8a1478a8fe07c3c7bc0ca0cf45b6aa2",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Implement `derivate`\n",
+    "\n",
+    "def derivate(e, x):\n",
+    "    \"\"\"Returns the derivative of e wrt x.\n",
+    "    It can be done in less than 15 lines of code.\"\"\"\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    if isnumber(e):\n",
+    "        return 0\n",
+    "    if isvariable(e):\n",
+    "        if e == x:\n",
+    "            return 1\n",
+    "        else:\n",
+    "            return 0\n",
+    "\n",
+    "\n",
+    "    # if iscomposite(e):\n",
+    "    op, l, r = e\n",
+    "    if op == \"+\":\n",
+    "            return (\"+\", derivate(l, x), derivate(r, x))\n",
+    "    if op == \"-\":\n",
+    "            return (\"-\", derivate(l, x), derivate(r, x))\n",
+    "    if op == \"*\":\n",
+    "            return (\"+\", (\"*\", derivate(l, x), r), (\"*\", l, derivate(r, x))) # Corrected this line to apply the product rule\n",
+    "    if op == \"/\":\n",
+    "            return (\"/\", (\"-\", (\"*\", derivate(l, x), r), (\"*\", l, derivate(r, x))), (\"*\", r, r))\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "id": "4e4d55c6",
+   "metadata": {
+    "cellView": "form",
+    "id": "6FfdmpgESlfG",
+    "notebookgrader": {
+     "id": "d6e249235d2a556f7e8af35a45d3aded081a5c38",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: `derivate` for single-operator expressions\n",
+    "\n",
+    "assert derivate(('+', 'x', 'x'), 'x') == ('+', 1, 1)\n",
+    "assert derivate(('-', 4, 'x'), 'x') == ('-', 0, 1)\n",
+    "assert derivate(('*', 2, 'x'), 'x') == ('+', ('*', 0, 'x'), ('*', 2, 1))\n",
+    "assert derivate(('/', 2, 'x'), 'x') == ('/', ('-', ('*', 0, 'x'), ('*', 2, 1)), ('*', 'x', 'x'))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 52,
+   "id": "da5f1e8f",
+   "metadata": {
+    "cellView": "form",
+    "id": "FG_grx26VtWo",
+    "notebookgrader": {
+     "id": "3837836e24724a2191ed9570af5daf03b8b982ca",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 5,
+     "readonly": true,
+     "test_points": 5
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 5/5 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 5 points: `derivate` for composite expressions\n",
+    "\n",
+    "e1 = ('*', 'x', 'x')\n",
+    "e2 = ('*', 3, 'x')\n",
+    "num = ('-', e1, e2)\n",
+    "e3 = ('*', 'a', 'x')\n",
+    "den = ('+', e1, e3)\n",
+    "e = ('/', num, den)\n",
+    "\n",
+    "f = ('/',\n",
+    " ('-',\n",
+    "  ('*',\n",
+    "   ('-',\n",
+    "    ('+', ('*', 1, 'x'), ('*', 'x', 1)),\n",
+    "    ('+', ('*', 0, 'x'), ('*', 3, 1))),\n",
+    "   ('+', ('*', 'x', 'x'), ('*', 'a', 'x'))),\n",
+    "  ('*',\n",
+    "   ('-', ('*', 'x', 'x'), ('*', 3, 'x')),\n",
+    "   ('+',\n",
+    "    ('+', ('*', 1, 'x'), ('*', 'x', 1)),\n",
+    "    ('+', ('*', 0, 'x'), ('*', 'a', 1))))),\n",
+    " ('*',\n",
+    "  ('+', ('*', 'x', 'x'), ('*', 'a', 'x')),\n",
+    "  ('+', ('*', 'x', 'x'), ('*', 'a', 'x'))))\n",
+    "\n",
+    "assert derivate(e, 'x') == f\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "25de54e3",
+   "metadata": {
+    "id": "0yCJbYjYJt84",
+    "notebookgrader": {
+     "id": "4b15be1082ef52e6e16fe0d748c403a5cb9769d3",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Testing the derivative via its definition"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "8215de4c",
+   "metadata": {
+    "id": "-FGBHs6xRM-X",
+    "notebookgrader": {
+     "id": "1667131f96bba8e78d1e46c66dead163d547b1d4",
+     "readonly": true
+    }
+   },
+   "source": [
+    "One of the best ways of testing a solution to a difficult problem consists in implementing a different solution, and then comparing the two.\n",
+    "\n",
+    "To help test your implementation of derivative, we can use the following property of derivative:\n",
+    "\n",
+    "$$\n",
+    "\\frac{\\partial f}{\\partial x} \\approx \\frac{f(x + \\Delta) - f(x)}{\\Delta}\n",
+    "$$\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 54,
+   "id": "5383ed2b",
+   "metadata": {
+    "id": "xGV0QOMARdTJ",
+    "notebookgrader": {
+     "id": "504f6f29b4defc35a7852d82760f6e2afea1059f",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def derivate_approx(f, x, varval, delta=0.0001):\n",
+    "    \"\"\"Computes the derivative of f with respect to x, for a given delta,\n",
+    "    using the (f(x + delta) - f(x)) / delta method. \"\"\"\n",
+    "    # This is f(x)\n",
+    "    f_x = compute(f, varval=varval)\n",
+    "\n",
+    "    varval_delta = dict(varval)\n",
+    "    varval_delta[x] += delta\n",
+    "    # This is f(x + delta)\n",
+    "    f_x_plus_delta = compute(f, varval=varval_delta)\n",
+    "\n",
+    "    return (f_x_plus_delta - f_x) / delta"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "id": "2aff7994",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 10,
+     "status": "ok",
+     "timestamp": 1632952257144,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "idf_ywyWYyzw",
+    "notebookgrader": {
+     "id": "6f71987033469835f729843a67763806c633087b",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "51828296-3a6f-4157-c109-ce56d786904c"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# This is x^2 + 3x.  Its derivative is 2x + 3.\n",
+    "f = (\"+\", (\"*\", \"x\", \"x\"), (\"*\", \"x\", 3))\n",
+    "# The derivative, at x= 2, should be close to 7.\n",
+    "derivate_approx(f, \"x\", varval=dict(x=2))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f3a3773f",
+   "metadata": {
+    "id": "KNnj0jvGYw6o",
+    "notebookgrader": {
+     "id": "18a7e0989043f310a06031bb810a3a4adebdd0bd",
+     "readonly": true
+    }
+   },
+   "source": [
+    "On the basis of this idea, write a function `test_derivative` that takes as arguments:\n",
+    "\n",
+    "* an expression `f`\n",
+    "* its symbolic derivative expression `df` computed with respect to variable `x`\n",
+    "* the variable `x`\n",
+    "* a `delta` to compute the derivative of `f` with respect to `x` using `derivate_approx`,\n",
+    "* a `tolerance` within which to consider the solution correct.\n",
+    "* a `num_trials` specifying how many times to perform the validation.\n",
+    "\n",
+    "For each validation, one must first choose a random variable valuation for the variables appearing in `f`, as done for the expression equality check.  For this variable valuation, one then computes:\n",
+    "\n",
+    "* the value of the symbolic derivative `df`\n",
+    "* the value of the experimental derivative of `f`, computed using `derivate_approx`\n",
+    "\n",
+    "and one checks that the two values are closer, in absolute value, than `tolerance`.  If any of the `num_trials` checks fail, we return `False`, to indicate that `df` is not the symbolic derivative of `f`.  If all `num_trial` checks pass, then we return `True`.\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "54a1c0a3",
+   "metadata": {
+    "id": "dBBVa7FDsfjM",
+    "notebookgrader": {
+     "id": "c1c351e3902a0305307140db5deffb81552f0cab",
+     "readonly": true
+    }
+   },
+   "source": [
+    "To help clarify what you have to do, let's do it by hand once.  Consider this expression:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 58,
+   "id": "ed819bef",
+   "metadata": {
+    "id": "LQHDWDf2smO9",
+    "notebookgrader": {
+     "id": "7d665ce2b7ea828dbe588864cbf9d2a4541e8df0",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "f = (\"+\", (\"*\", \"cat\", \"cat\"), (\"*\", \"dog\", \"cat\"))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "b07b3127",
+   "metadata": {
+    "id": "9GWxe3FWswzE",
+    "notebookgrader": {
+     "id": "6cf3025a436d6a2801948d0b2706d01971ec9ffc",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We are going to consider the symbolic derivative with respect to `cat`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 60,
+   "id": "63c14fe2",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 174,
+     "status": "ok",
+     "timestamp": 1632952257313,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "XielEfkStEzi",
+    "notebookgrader": {
+     "id": "4d60989d803c924ca6587596808b61cf512cfc02",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "c95333de-a229-494a-d2ac-0b9c095c3ab1"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "df1: 5.74\n",
+       "df2: 6.4079999999999995\n",
+       "approximate: 5.740099999993475"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "x = \"cat\" # Variable wrt which we derivate.\n",
+    "# This is our first candidate at symbolic derivative.\n",
+    "df1 = (\"+\", (\"*\", 2, \"cat\"), \"dog\")\n",
+    "# And this is our second attempt.\n",
+    "df2 = (\"+\", (\"*\", 2, \"cat\"), (\"*\", \"dog\", \"cat\"))\n",
+    "\n",
+    "# Let us come up with a random variable valuation. Well, not random actually.\n",
+    "valu = {\"cat\": 1.2, \"dog\": 3.34}\n",
+    "\n",
+    "# Let us compute the values of df1 and df2, and of the approximation of the derivative.\n",
+    "print(\"df1:\", compute(df1, varval=valu))\n",
+    "print(\"df2:\", compute(df2, varval=valu))\n",
+    "print(\"approximate:\", derivate_approx(f, x, valu))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "dad2ce1c",
+   "metadata": {
+    "id": "reDYFNUZu3lO",
+    "notebookgrader": {
+     "id": "70a28b35e9846fd8fd5d1497f47c803dbfe59d94",
+     "readonly": true
+    }
+   },
+   "source": [
+    "From this we see that `df2` is not the symbolic derivative of `f`, as the error is quite large (6.4 vs. 5.74, approximately).\n",
+    "\n",
+    "Now you have to code `test_derivative`, to perform this test automatically.  We give you the function `similar`, which you should use to test whether two numbers `x`, `y` are similar within `epsilon`, via `similar(x, y, epsilon)`. According to this function, two positive numbers $x, y$ are similar within a given $\\epsilon$ if either\n",
+    "\n",
+    "$$\n",
+    "|x-y| < \\epsilon\n",
+    "$$\n",
+    "\n",
+    "or\n",
+    "\n",
+    "$$\n",
+    "\\frac{\\max(x,y)}{\\min(x,y) + \\epsilon} < 1 + \\epsilon \\; .\n",
+    "$$\n",
+    "\n",
+    "This implements a robust test for equality that is necessary here."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9843e538",
+   "metadata": {
+    "id": "V15MpjKnacfE",
+    "notebookgrader": {
+     "id": "70e1aee67d331134a374c315877b36212d3d10e3",
+     "readonly": true
+    }
+   },
+   "source": [
+    "When you obtain the symbolic derivative value `sym_d` and the approximate derivative value `approx_d`, compare them via\n",
+    "\n",
+    "    similar(sym_d, approx_d, epsilon)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 62,
+   "id": "f7d19645",
+   "metadata": {
+    "id": "w92IzrJQafoN",
+    "notebookgrader": {
+     "id": "ccfe053469c66b55aee81db1c54f44bfc9bab604",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def similar(x, y, epsilon):\n",
+    "    if x < 0 and y < 0:\n",
+    "        # If they are negative, max and min play opposite roles.\n",
+    "        return similar(-x, -y, epsilon)\n",
+    "    if abs(x - y) < epsilon:\n",
+    "        return True\n",
+    "    else:\n",
+    "        return max(x, y) / (min(x, y) + epsilon) < 1 + epsilon"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 64,
+   "id": "6882eea8",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 2,
+     "status": "ok",
+     "timestamp": 1733384412498,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "WNJcPYyRpJZ8",
+    "notebookgrader": {
+     "id": "033fc325a9e456d9775995559fbc8816c5a39fc1",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Implementation of `test_derivative`\n",
+    "\n",
+    "def test_derivative(f, df, x, delta=0.0001, tolerance=0.01, num_tests=1000):\n",
+    "    \"\"\"See above.\"\"\"\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    for _ in range(num_tests):\n",
+    "            #Get a list of all variables in the expression `f`\n",
+    "            f_vars = variables(f)\n",
+    "\n",
+    "            #If the variable `x` we are taking the derivative with respect to\n",
+    "            #is not in the list of variables found in `f`, include it in the\n",
+    "            #list so that `varval` will have a key for it\n",
+    "            if isinstance(f_vars, set):\n",
+    "                f_vars = list(f_vars)\n",
+    "\n",
+    "            if x not in f_vars:\n",
+    "                f_vars.append(x)\n",
+    "\n",
+    "            #Create a dictionary where each key is a variable in `f` and the\n",
+    "            #associated value is a random number between -100 and 100\n",
+    "            varval = {var: random.uniform(-100, 100) for var in f_vars}\n",
+    "            sym_d = compute(df, varval=varval)\n",
+    "\n",
+    "            approx_d = derivate_approx(f, x, varval, delta)\n",
+    "\n",
+    "            if not similar(sym_d, approx_d, tolerance):\n",
+    "                return False\n",
+    "    return True\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 66,
+   "id": "21daf27e",
+   "metadata": {
+    "cellView": "form",
+    "id": "kn89hwfwvNs6",
+    "notebookgrader": {
+     "id": "db70544d43a8c067f4d4e4a836a2c1c76816401e",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: `test_derivative`\n",
+    "\n",
+    "f = (\"+\", (\"*\", \"cat\", \"cat\"), (\"*\", \"dog\", \"cat\"))\n",
+    "df1 = (\"+\", (\"*\", 2, \"cat\"), \"dog\")\n",
+    "df2 = (\"+\", (\"*\", 2, \"cat\"), (\"*\", \"dog\", \"cat\"))\n",
+    "\n",
+    "assert test_derivative(f, df1, \"cat\") == True\n",
+    "assert test_derivative(f, df2, \"cat\") == False\n",
+    "assert test_derivative(f, df1, \"dog\") == False\n",
+    "assert test_derivative(f, df1, \"donkey\") == False\n",
+    "assert test_derivative(f, 0, \"donkey\") == True\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "8823ec8a",
+   "metadata": {
+    "id": "Yp0XCasSdgLF",
+    "notebookgrader": {
+     "id": "b2acf342211e6eb97b7ef0f2bf82026a6ecf5cd8",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Fraction form\n",
+    "\n",
+    "To gain practice working with symbolic expression trees, we will implement a function that transforms an expression into _fraction form._  We say that an expression $e$ is in _fraction form_ if one of these two conditions is true:\n",
+    "\n",
+    "* either $e$ does not contain the division operator $/$,\n",
+    "* or $e = e_1 / e_2$, for $e_1$ and $e_2$ not containing $/$.\n",
+    "\n",
+    "Thus, intuitively, an expression $e$ in fraction form either does not contain division, or is in the form of a fraction, with a numerator and a denominator, neither of which contains the division operator.  \n",
+    "\n",
+    "In order to put an expression in fraction form, we start bottom up, obtaining fraction representations for the expression nodes proceeding from the leaves, and going up to the top, in fashion not dissimilar to what we did in the compute function.  At a node $(\\odot, e_1, e_2)$, given fraction representations for $e_1$ and $e_2$, we obtain a fraction representation for the node via:\n",
+    "\n",
+    "$$\n",
+    "\\frac{n_1}{d_1} \\pm \\frac{n_2}{d_2} \\Rightarrow \\frac{n_1 d_2 \\pm n_2 d_1}{d_1 d_2}, \\quad\n",
+    "\\frac{n_1}{d_1} \\cdot \\frac{n_2}{d_2} \\Rightarrow \\frac{n_1 n_2}{d_1 d_2}, \\quad\n",
+    "\\frac{n_1}{d_1} \\Bigm/ \\frac{n_2}{d_2} \\Rightarrow \\frac{n_1 d_2}{d_1 n_2}.\n",
+    "$$\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "b696d21e",
+   "metadata": {
+    "id": "DMENVONsjMDZ",
+    "notebookgrader": {
+     "id": "2edf874356447aeaf5dcbce1399940cedba92adf",
+     "readonly": true
+    }
+   },
+   "source": [
+    "The implementation proceeds as follows.  Given a node  $(\\odot, e_1, e_2)$, we first put $e_1$, $e2$ in fraction form, obtaining $e'_1, e'_2$.  We then determine whether one of $e'_1$ or $e'_2$ is a fraction, that is, has the $/$ operator as the root operator.  If this is the case, we combine the fractions $e'_1$ and $e'_2$ using the rules above.  If none of them is a fraction, we simply leave the node unchanged.   We leave the code for you to write."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c43b0f53",
+   "metadata": {
+    "id": "bPqyQyfiIwlI",
+    "notebookgrader": {
+     "id": "f513adeb250c42b91cd2de97257df0e23ca35718",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We ask you to write `to_fraction`, which converts an expression to fraction form."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 68,
+   "id": "c7477b9a",
+   "metadata": {
+    "id": "RQZ8NJXUkIu-",
+    "notebookgrader": {
+     "id": "d48505c14e6ca4920c5bf7b779f82323a63482cc",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Putting expressions in fraction form.\n",
+    "\n",
+    "def to_fraction(e):\n",
+    "    \"\"\"Returns the expression e converted to fraction form.\"\"\"\n",
+    "\n",
+    "    # ## YOUR SOLUTION HERE\n",
+    "\n",
+    "    if not isinstance(e, tuple):\n",
+    "        return e  # dis dat base case --  returned as is.\n",
+    "    op, left, right = e\n",
+    "    left = to_fraction(left)\n",
+    "    right = to_fraction(right)\n",
+    "\n",
+    "    if op in ('+', '-', '*', '/'):\n",
+    "        # fraction form.\n",
+    "        if isinstance(left, tuple) and left[0] == '/' or \\\n",
+    "           isinstance(right, tuple) and right[0] == '/':\n",
+    "            # If left is a fraction a/b and right is a fraction c/d:\n",
+    "\n",
+    "            # And similarly if left is a and right is c/d.\n",
+    "            num1 = left[1] if isinstance(left, tuple) and left[0] == '/' else left\n",
+    "            den1 = left[2] if isinstance(left, tuple) and left[0] == '/' else 1\n",
+    "            num2 = right[1] if isinstance(right, tuple) and right[0] == '/' else right\n",
+    "            den2 = right[2] if isinstance(right, tuple) and right[0] == '/' else 1\n",
+    "            if op == '+':\n",
+    "                return ('/', ('+', ('*', num1, den2), ('*', num2, den1)), ('*', den1, den2))\n",
+    "            elif op == '-':\n",
+    "                return ('/', ('-', ('*', num1, den2), ('*', num2, den1)), ('*', den1, den2))\n",
+    "            elif op == '*':\n",
+    "                return ('/', ('*', num1, num2), ('*', den1, den2))\n",
+    "            elif op == '/':\n",
+    "                return ('/', ('*', num1, den2), ('*', den1, num2))\n",
+    "        else:\n",
+    "            return (op, left, right)  # No fraction form needed.\n",
+    "    else:\n",
+    "        # For unsupported operators, return the original expression unchanged.\n",
+    "        return e\n",
+    "\n",
+    "\n",
+    "    #                 num2, den2 = right[1], right[2]\n",
+    "    #                 return ('/', ('*', num1, num2), ('*', den1, den2))\n",
+    "    #             else:\n",
+    "    #                 return e\n",
+    "    #         elif op == '/':\n",
+    "    #             if isinstance(left, tuple) and left[0] == '/' and isinstance(right, tuple) and right[0] != '/':\n",
+    "    #                 num1, den1 = left[1], left[2]\n",
+    "    #                 # For case ('/', ('/', 'a', 'b'), 'c'): transform to ('/', 'a', ('*', 'b', 'c'))\n",
+    "    #                 return ('/', num1, ('*', den1, right))\n",
+    "    #             elif isinstance(left, tuple) and left[0] == '/' and isinstance(right, tuple) and right[0] == '/':\n",
+    "    #                 num1, den1 = left[1], left[2]\n",
+    "    #                 num2, den2 = right[1], right[2]\n",
+    "    #                 return ('/', ('*', num1, den2), ('*', den1, num2))\n",
+    "    #             else:\n",
+    "    #                 # Assuming left is not a tuple starting with '/'\n",
+    "    #                 return ('/', left, right) # added line 1\n",
+    "    #                 #return e  # Handle cases where left or right are not fractions\n",
+    "\n",
+    "    #         else:\n",
+    "    #             return e\n",
+    "\n",
+    "    # if not isinstance(e, tuple):\n",
+    "    #     # Base case: e is a number or a variable\n",
+    "    #     return ('/', e, 1)\n",
+    "\n",
+    "    # op, l, r = e\n",
+    "\n",
+    "    # # Recursively convert the left and right operands to fraction form\n",
+    "    # l_frac = to_fraction(l)\n",
+    "    # r_frac = to_fraction(r)\n",
+    "\n",
+    "    # # Extract numerators and denominators\n",
+    "    # l_num, l_den = l_frac[1], l_frac[2]\n",
+    "    # r_num, r_den = r_frac[1], r_frac[2]\n",
+    "\n",
+    "    # if op == '+':\n",
+    "    #     return ('/', ('+', ('*', l_num, r_den), ('*', r_num, l_den)), ('*', l_den, r_den))\n",
+    "    # elif op == '-':\n",
+    "    #     return ('/', ('-', ('*', l_num, r_den), ('*', r_num, l_den)), ('*', l_den, r_den))\n",
+    "    # elif op == '*':\n",
+    "    #     return ('/', ('*', l_num, r_num), ('*', l_den, r_den))\n",
+    "    # elif op == '/':\n",
+    "    #     return ('/', ('*', l_num, r_den), ('*', l_den, r_num))\n",
+    "    # else:\n",
+    "    #     raise ValueError(f\"Unsupported operator: {op}\")\n",
+    "\n",
+    "\n",
+    "    \"\"\"Returns the expression e converted to fraction form.\"\"\"\n",
+    "\n",
+    "\n",
+    "    # if not isinstance(e, tuple):\n",
+    "    #     # Base case: e is a number or variable\n",
+    "    #     return ('/', e, 1)\n",
+    "\n",
+    "    # if isinstance(e, tuple) and e[0] in ('-', '*', '/'):\n",
+    "    #     op, left, right = e\n",
+    "    #     left_frac = to_fraction(left)\n",
+    "    #     right_frac = to_fraction(right)\n",
+    "\n",
+    "    #     # Extract numerators and denominators\n",
+    "    #     l_num, l_den = left_frac[1], left_frac[2]\n",
+    "    #     r_num, r_den = right_frac[1], right_frac[2]\n",
+    "\n",
+    "    #     if op == '-':\n",
+    "    #         # (a/b) - (c/d) = (ad - bc) / bd\n",
+    "    #\n",
+    "    #         # Special handling for nested divisions:\n",
+    "    #         if isinstance(left, tuple) and left[0] == '/' and isinstance(right, tuple) and right[0] == '/':\n",
+    "    #             # (a/b) / (c/d) => (a/b) * (d/c) => (ad)/(bc)\n",
+    "    #             return ('/', ('*', l_num, r_den), ('*', l_den, r_num))\n",
+    "    #         else:\n",
+    "    #             # Other division cases\n",
+    "    #             return ('/', l_num, ('*', l_den, right)) if isinstance(left, tuple) and left[0] == '/' else ('/', left, right)\n",
+    "\n",
+    "    # # Handle '+' operation\n",
+    "    # if isinstance(e, tuple) and e[0] == '+':\n",
+    "    #     op, left, right = e\n",
+    "    #     left_frac = to_fraction(left)\n",
+    "    #     right_frac = to_fraction(right)\n",
+    "\n",
+    "    #     l_num, l_den = left_frac[1], left_frac[2]\n",
+    "    #     r_num, r_den = right_frac[1], right_frac[2]\n",
+    "\n",
+    "    #     return ('/', ('+', ('*', l_num, r_den), ('*', r_num, l_den)), ('*', l_den, r_den))\n",
+    "\n",
+    "    # # For other cases, return the expression as is\n",
+    "    # return e\n",
+    "\n",
+    "#-- passes first test ^^\n",
+    "\n",
+    "\n",
+    "    \"\"\"Returns the expression e converted to fraction form.\"\"\"\n",
+    "\n",
+    "\n",
+    "\n",
+    "    # if not isinstance(e, tuple):\n",
+    "    #     # Base case: e is a number or a variable\n",
+    "    #     return ('/', e, 1)\n",
+    "\n",
+    "\n",
+    "\n",
+    "    \"\"\"Returns the expression e converted to fraction form.\"\"\"\n",
+    "\n",
+    "\n",
+    "\n",
+    "\n",
+    "# og code check tmrw ig...\n",
+    "    # def simplify1(e):\n",
+    "    #     if isinstance(e, tuple):\n",
+    "    #         op, l, r = e\n",
+    "    #         ll == simplify1(l)\n",
+    "    #         rr == simplify1(r)\n",
+    "    #         if op == \"*\":\n",
+    "    #             if ll\n",
+    "    #         if op == \"/\":\n",
+    "    #             if rr == 1:\n",
+    "    #                 return ll\n",
+    "\n",
+    "\n",
+    "    #     def fraction(e):\n",
+    "    #         if isinstance(e) or isvariable(e):\n",
+    "    #             return e,1\n",
+    "\n",
+    "    #         if iscomposite(e):\n",
+    "    #             op, l, r = e\n",
+    "    #             lnum, lden = fraction(l)\n",
+    "    #             rnum, rden = fraction(r)\n",
+    "\n",
+    "    #             if op == '+':\n",
+    "    #                 num = ('+', ('*', lnum, rden), ('*', rnum, lden))\n",
+    "    #                 den = ('*', rnum, lden)\n",
+    "    #             if op == '-':\n",
+    "    #                 num = ('-', ('*', lnum, rden), ('*', rnum, lden))\n",
+    "    #                 den = ('*', rnum, lden)\n",
+    "    #             if op == '*':\n",
+    "    #                 num = ('*', lnum, rnum)\n",
+    "    #                 den = ('*', lden, rden)\n",
+    "    #\n",
+    "    #     return e\n",
+    "    # if isinstance(e, str):\n",
+    "    #     return e\n",
+    "    # op, l, r = e\n",
+    "\n",
+    "    # # Convert the left and right operands to fraction form recursively\n",
+    "    # l = to_fraction(l)\n",
+    "    # r = to_fraction(r)\n",
+    "\n",
+    "    # if op == '+':\n",
+    "    #     # a/b + c/d = (ad + bc) / bd\n",
+    "# --vv\n",
+    "    # --^^\n",
+    "# -- gem vvv\n",
+    "    # if isinstance(e, (int, float)):\n",
+    "    #     return e\n",
+    "    # if isinstance(e, str):\n",
+    "    #     return e\n",
+    "    # op, l, r = e\n",
+    "\n",
+    "    # # Convert the left and right operands to fraction form recursively\n",
+    "    # l = to_fraction(l)\n",
+    "    # r = to_fraction(r)\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "fef49603",
+   "metadata": {
+    "id": "XdEzdOT1mwoP",
+    "notebookgrader": {
+     "id": "f3e727e85af0f0ffdebce78eed62105c4390c9c5",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let us put into fraction form the expression:\n",
+    "$$\n",
+    "\\frac{a}{b} + \\frac{c}{2}\n",
+    "$$"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 70,
+   "id": "1c806506",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 191,
+     "status": "ok",
+     "timestamp": 1632952257650,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "J56AdZsqmq2K",
+    "notebookgrader": {
+     "id": "c952e6bf7dffa3752256c2ebca73c0c597ccdff1",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "0bf027f0-5505-466d-c9f7-7e7a06a14be2"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "('/', ('+', ('*', 'a', 2), ('*', 'c', 'b')), ('*', 'b', 2))"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "e = ('+', ('/', 'a', 'b'), ('/', 'c', 2))\n",
+    "print(to_fraction(e))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "5271f81d",
+   "metadata": {
+    "id": "xExwRgvlnTGg",
+    "notebookgrader": {
+     "id": "6c0512a9ac0dc07a3f9364ae5fe29d1809203575",
+     "readonly": true
+    }
+   },
+   "source": [
+    "The above is\n",
+    "$$\n",
+    "\\frac{2a + cb}{2b}\n",
+    "$$\n",
+    "as expected.  Let us now try with\n",
+    "$$\n",
+    "\\frac{a}{\\frac{b}{\\frac{c}{d}}}\n",
+    "$$"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 72,
+   "id": "0f19392e",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 10,
+     "status": "ok",
+     "timestamp": 1632952257652,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "4hB0IpFFyooZ",
+    "notebookgrader": {
+     "id": "d71aaa946183b7ed3275af960d30871f57cefa66",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "5ba28ec3-f72b-4821-a01a-acb2907b52b5"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "('/', ('*', 'a', ('*', 1, 'c')), ('*', 1, ('*', 'b', 'd')))"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "e = ('/', 'a', ('/', 'b', ('/', 'c', 'd')))\n",
+    "print(to_fraction(e))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "897fc131",
+   "metadata": {
+    "id": "af1O3a7AzEaO",
+    "notebookgrader": {
+     "id": "6162d4ec82ca1a46792ddef00ef96331e3076bfd",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Which is\n",
+    "$$\n",
+    "\\frac{ac}{bd}\n",
+    "$$\n",
+    "if we could simplify multiplications by 1."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "95f95670",
+   "metadata": {
+    "id": "F-3UKMzWDO3m",
+    "notebookgrader": {
+     "id": "d1825b2351e00fe2ed1d58a74cc723590b30112c",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Here are some tests for fraction form."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 74,
+   "id": "e1dc8079",
+   "metadata": {
+    "id": "i9mv0MJMwHRI",
+    "notebookgrader": {
+     "id": "4d8ae354aab556b22b21148d48df37fa740f4c06",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 5,
+     "readonly": true,
+     "test_points": 5
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 5/5 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 5 points: Simple tests for fraction form.\n",
+    "\n",
+    "e = ('/', ('/', 'a', 3), ('/', 4, 'c'))\n",
+    "assert to_fraction(e) == ('/', ('*', 'a', 'c'), ('*', 3, 4))\n",
+    "\n",
+    "e = ('*', ('/', 'a', 3), ('/', 4, 'c'))\n",
+    "assert to_fraction(e) == ('/', ('*', 'a', 4), ('*', 3, 'c'))\n",
+    "\n",
+    "e = ('-', ('/', 'a', 3), ('/', 4, 'c'))\n",
+    "assert to_fraction(e) == ('/', ('-', ('*', 'a', 'c'), ('*', 4, 3)), ('*', 3, 'c'))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 76,
+   "id": "7e7182c5",
+   "metadata": {
+    "id": "EM7yfOSvEH75",
+    "notebookgrader": {
+     "id": "5b9bb76d7ce382eaad969171585a3ab12e9b6785",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 5,
+     "readonly": true,
+     "test_points": 5
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 5/5 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 5 points: More complicated tests for fraction form.\n",
+    "\n",
+    "e = ('/', ('/', 'a', ('/', 'b', 'v')), ('*', ('+', 'f', 'g'), 'c'))\n",
+    "assert to_fraction(e) == ('/',\n",
+    " ('*', ('*', 'a', 'v'), 1),\n",
+    " ('*', ('*', 1, 'b'), ('*', ('+', 'f', 'g'), 'c')))\n",
+    "e = ('-', ('+', 'a', ('/', 'b', 'v')), ('*', ('+', 'f', 'g'), 'c'))\n",
+    "assert to_fraction(e) == ('/',\n",
+    " ('-',\n",
+    "  ('*', ('+', ('*', 'a', 'v'), ('*', 'b', 1)), 1),\n",
+    "  ('*', ('*', ('+', 'f', 'g'), 'c'), ('*', 1, 'v'))),\n",
+    " ('*', ('*', 1, 'v'), 1))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 78,
+   "id": "e44f25c8",
+   "metadata": {
+    "id": "33k4CRxbE5Ff",
+    "notebookgrader": {
+     "id": "e633666b36505c80fbfde69f9d88ce6e918efdb1",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Finally, here are some randomized tests.\n",
+    "# This generates random expressions.\n",
+    "\n",
+    "op_names = '+-*/'\n",
+    "var_names = 'abcdefghilmnopqrstuvz'\n",
+    "\n",
+    "def random_expression(bias=0):\n",
+    "    \"\"\"Returns a random expression.\"\"\"\n",
+    "    p = (1 - math.exp(-bias / 7))\n",
+    "    if random.random() < p / 3:\n",
+    "        # Number.\n",
+    "        return random.random() * 10\n",
+    "    elif random.random() < p:\n",
+    "        # Symbol.\n",
+    "        return \"\".join([random.choice(var_names) for _ in range(16)])\n",
+    "    else:\n",
+    "        op = random.choice(op_names)\n",
+    "        return (op, random_expression(bias=bias+1), random_expression(bias=bias+1))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 80,
+   "id": "bb1bcc74",
+   "metadata": {
+    "id": "P0q9dhwjH8qr",
+    "notebookgrader": {
+     "id": "4b09a68a4f8e23ee0e6b34381b90920117d1fc88",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def is_in_fraction_form(e):\n",
+    "    \"\"\"Returns True if e is in fraction form, and False otherwise.\"\"\"\n",
+    "    def no_div(e):\n",
+    "        if isinstance(e, tuple):\n",
+    "            op, l, r = e\n",
+    "            return op != '/' and no_div(l) and no_div(r)\n",
+    "        else:\n",
+    "            return True\n",
+    "    if isinstance(e, tuple):\n",
+    "        op, l, r = e\n",
+    "        return no_div(l) and no_div(r)\n",
+    "    else:\n",
+    "        return True"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 82,
+   "id": "fe157b48",
+   "metadata": {
+    "id": "7M_pkvtTF5lc",
+    "notebookgrader": {
+     "id": "873bf8ddf107d79702049f839a8a321cb9f4f76c",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: These are the random tests.\n",
+    "\n",
+    "class NotEqual(Exception):\n",
+    "    pass\n",
+    "\n",
+    "for _ in range(100):\n",
+    "    e = random_expression()\n",
+    "    ee = to_fraction(e)\n",
+    "    assert is_in_fraction_form(ee), (\"not in form:\", ee)\n",
+    "    try:\n",
+    "        assert value_equality(e, ee, num_samples=100, tolerance=0.1), (\"e:\", e, \"ee:\", ee)\n",
+    "    except:\n",
+    "        raise NotEqual(\"e: {}, ee: {}\".format(e, ee))\n"
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

@@ -1,0 +1,756 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "37bf1e86",
+   "metadata": {
+    "id": "MFtDaysDPs4q",
+    "notebookgrader": {
+     "id": "1185a09a52629150105dc16930ab6b589ee83819",
+     "readonly": true
+    }
+   },
+   "source": [
+    "# Fractions\n",
+    "## Copyright Luca de Alfaro, 2021."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "645da736",
+   "metadata": {
+    "id": "CgHod_TsPy5C",
+    "notebookgrader": {
+     "id": "cf8271a6b531af55aa8058fe957f1d0020165293",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We have seen in the chapter on classes how to implement complex numbers:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "c0a19685",
+   "metadata": {
+    "id": "HUZETUJRP-uU",
+    "notebookgrader": {
+     "id": "e1d5c3fc6da3f27e5a3670c417cf2fe03b290e2f",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import math\n",
+    "\n",
+    "class Complex(object):\n",
+    "\n",
+    "    def __init__(self, r, i):\n",
+    "        self.r = r # Real part\n",
+    "        self.i = i # Imaginary part\n",
+    "\n",
+    "    def __add__(self, other):\n",
+    "        return Complex(self.r + other.r, self.i + other.i)\n",
+    "\n",
+    "    def __sub__(self, other):\n",
+    "        return Complex(self.r - other.r, self.i - other.i)\n",
+    "\n",
+    "    def __mul__(self, other):\n",
+    "        return Complex((self.r * other.r - self.i * other.i),\n",
+    "                       (self.r * other.i + self.i * other.r))\n",
+    "\n",
+    "    @property\n",
+    "    def modulus_square(self):\n",
+    "        return self.r * self.r + self.i * self.i\n",
+    "\n",
+    "    @property\n",
+    "    def modulus(self):\n",
+    "        return math.sqrt(self.modulus_square)\n",
+    "\n",
+    "    def inverse(self):\n",
+    "        m = self.modulus_square # to cache it\n",
+    "        return Complex(self.r / m, - self.i / m)\n",
+    "\n",
+    "    def __truediv__(self, other):\n",
+    "        return self * other.inverse()\n",
+    "\n",
+    "    def __repr__(self):\n",
+    "        \"\"\"This defines how to print a complex number.\"\"\"\n",
+    "        if self.i < 0:\n",
+    "            return \"{}-{}i\".format(self.r, -self.i)\n",
+    "        return \"{}+{}i\".format(self.r, self.i)\n",
+    "\n",
+    "    def __eq__(self, other):\n",
+    "        \"\"\"We even define equality\"\"\"\n",
+    "        return self.r == other.r and self.i == other.i"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "86c3aa0d",
+   "metadata": {
+    "id": "zsoujbENQAIR",
+    "notebookgrader": {
+     "id": "eef393d30d13a561e65b40540336cdbce7904b81",
+     "readonly": true
+    }
+   },
+   "source": [
+    "There are several ideas above:\n",
+    "\n",
+    "* To implement the mathematical operations `+`, `-`, `*`, `/`, between complex numbers, we implement the methods `__add__`, `__sub__`, `__mul__`, `__truediv__`.  You can find more information in the documentation for the [Python data model](https://docs.python.org/3/reference/datamodel.html).\n",
+    "* Similarly, to define equality we define `__eq__`, and to define `<` we define `__lt__`.\n",
+    "\n",
+    "We will now do something similar to define fractions."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "bb8272d3",
+   "metadata": {
+    "id": "z0pHTUMMQ1F6",
+    "notebookgrader": {
+     "id": "6c6548ae9eb41a46fdf30030073f02bf8758a410",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Fractions, and normal form\n",
+    "\n",
+    "We want to define a class `Fraction` to represent a fraction, with integers as numerator and denominator.  \n",
+    "Similarly to the `Complex` class above, you need to implement the methods necessary to define `+`, `-`, `*`, `/` among fractions, as well as equality.\n",
+    "\n",
+    "You will represent fractions in _normal form_, such that:\n",
+    "* numerator and denumerator which do not have common factors (common divisors), except for 1 (of course),\n",
+    "* the denominator is positive.\n",
+    "\n",
+    "For example, when you create a fraction via:\n",
+    "\n",
+    "    r = Fraction(8, 6)\n",
+    "\n",
+    "and then ask for the denominator,\n",
+    "\n",
+    "    r.numerator\n",
+    "\n",
+    "the result will be 4, and\n",
+    "\n",
+    "    r.denominator\n",
+    "\n",
+    "will be 3.\n",
+    "\n",
+    "To remove the common factors from a fraction $m/n$, simply compute the greatest common divisor $d = gcd(m, n)$ via Euclid's algorithm (see the chapter on recursion), and reduce the fraction to $(m/d) / (n/d)$.\n",
+    "\n",
+    "We advise you to reduce a fraction into normal form directly into the constructor of the class (the `__init__` method).  \n",
+    "\n",
+    "Here is the code for `Fraction`; we leave the interesting bits for you to do.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "455c049c",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 122,
+     "status": "ok",
+     "timestamp": 1731384916767,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "qObAgSSaPq3Z",
+    "notebookgrader": {
+     "id": "be89d1f8dca83de4a35be7e431dec5830a7a4a51",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Definition of Fraction class\n",
+    "\n",
+    "# Here you can define any code that is useful to you\n",
+    "# (e.g., the gcd function, or anything else you wish).\n",
+    "### YOUR SOLUTION HERE\n",
+    "\n",
+    "class Fraction(object):\n",
+    "\n",
+    "    def __init__(self, numerator, denominator):\n",
+    "        assert isinstance(numerator, int)\n",
+    "        assert isinstance(denominator, int)\n",
+    "        assert denominator != 0\n",
+    "        ### YOUR SOLUTION HERE\n",
+    "        def gcd(a, b):\n",
+    "            if b == 0:\n",
+    "                return a\n",
+    "            else:\n",
+    "                return gcd(b, a % b)\n",
+    "\n",
+    "        com_div = gcd(numerator, denominator)\n",
+    "\n",
+    "        self.numerator = numerator // com_div\n",
+    "        self.denominator = denominator // com_div # %\n",
+    "\n",
+    "        if self.denominator < 0:\n",
+    "            self.numerator = -self.numerator\n",
+    "            self.denominator = -self.denominator\n",
+    "\n",
+    "    def __repr__(self):\n",
+    "        \"\"\"Pretty print a fraction.\"\"\"\n",
+    "        return \"{}/{}\".format(self.numerator, self.denominator)\n",
+    "\n",
+    "    def __eq__(self, other):\n",
+    "        \"\"\"Define equality of fractions based on their normalized values.\"\"\"\n",
+    "        if not isinstance(other, Fraction):\n",
+    "            return False  # Only compare to other Fraction objects\n",
+    "        return self.numerator * other.denominator == other.numerator * self.denominator\n",
+    "\n",
+    "    def __lt__(self, other):\n",
+    "        \"\"\"Compares two Fraction objects using the less than operator.\"\"\"\n",
+    "        # Cross-multiplication for comparison:\n",
+    "        # self < other  if and only if  self.numerator * other.denominator < other.numerator * self.denominator\n",
+    "        return self.numerator * other.denominator < other.numerator * self.denominator\n",
+    "\n",
+    "\n",
+    "\n",
+    "    ## Here, implement the methods for +, -, *, /, =, and <.\n",
+    "    ## Done quite at leisure, with spaces and all, this can be done in about\n",
+    "    ## 25 lines of code.\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    # def __add__(self, other):\n",
+    "    #     return Fraction((self.numerator / self.denominator) + (other.numerator / other.denominator))\n",
+    "\n",
+    "    # def __sub__(self, other):\n",
+    "    #     return Fraction((self.numerator / self.denominator) - (other.numerator / other.denominator))\n",
+    "\n",
+    "    # def __multiply__(self, other):\n",
+    "    #     return Fraction((self.numerator / self.denominator) * (other.numerator / other.denominator))\n",
+    "\n",
+    "    # def __div__(self, other):\n",
+    "    #     return Fraction((self.numerator / self.denominator) / (other.numerator / other.denominator))\n",
+    "\n",
+    "    def __add__ ( self, other):\n",
+    "        new_numerator = (self.numerator * other.denominator) + (other.numerator * self.denominator)\n",
+    "        new_denominator = self.denominator * other.denominator\n",
+    "        return Fraction(new_numerator, new_denominator)\n",
+    "\n",
+    "    def __sub__(self, other):\n",
+    "        # Calculate the numerator and denominator of the resulting fraction\n",
+    "        new_numerator = (self.numerator * other.denominator) - (other.numerator * self.denominator)\n",
+    "        new_denominator = (self.denominator * other.denominator)\n",
+    "        # Create a new Fraction object with the calculated values\n",
+    "        return Fraction(new_numerator, new_denominator)\n",
+    "\n",
+    "    def __mul__(self, other): # __multiply__\n",
+    "        # Calculate the numerator and denominator of the resulting fraction\n",
+    "        new_numerator = (self.numerator * other.numerator)\n",
+    "        new_denominator = self.denominator * other.denominator\n",
+    "        # Create a new Fraction object with the calculated values\n",
+    "        return Fraction(new_numerator, new_denominator)\n",
+    "\n",
+    "    def __truediv__(self, other): # __div__\n",
+    "        # Calculate the numerator and denominator of the resulting fraction\n",
+    "        new_numerator = self.numerator * other.denominator\n",
+    "        new_denominator = self.denominator * other.numerator\n",
+    "        # Create a new Fraction object with the calculated values\n",
+    "        return Fraction(new_numerator, new_denominator)\n",
+    "\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "b6a70146",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 20,
+     "status": "ok",
+     "timestamp": 1629853440883,
+     "user": {
+      "displayName": "Luca de Alfaro",
+      "photoUrl": "https://lh3.googleusercontent.com/a-/AOh14GgQ8O-qnvCJmNCoLojI1XoBNO3XQ2DeeJqexURPzQ=s64",
+      "userId": "08154392717664554862"
+     },
+     "user_tz": 420
+    },
+    "id": "NUCNuENFUIwb",
+    "notebookgrader": {
+     "id": "2d6bdab2c8912a080213ba4f7753c9684a7f6167",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "b8351d89-e140-4065-ecb2-4303627c7920"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "Fraction(8, 6)\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "cca3db46",
+   "metadata": {
+    "id": "kMMW3bXbV4zs",
+    "notebookgrader": {
+     "id": "37ae20f21961baa9a79dd53dd49a34f1d75bb791",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Here are some tests."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "c21469ac",
+   "metadata": {
+    "id": "NE_3FaYyaA_c",
+    "notebookgrader": {
+     "id": "156279e891576171162dd88c33269e7d7ee6feff",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points.\n",
+    "\n",
+    "## First, let us check that you correctly put the fraction into normal form,\n",
+    "## without common factor between numerator and denominator, and with a\n",
+    "## positive denominator.\n",
+    "\n",
+    "f = Fraction(8, 6)\n",
+    "assert f.numerator == 4 and f.denominator == 3\n",
+    "\n",
+    "f = Fraction(-8, 6)\n",
+    "assert f.numerator == -4 and f.denominator == 3\n",
+    "\n",
+    "f = Fraction(8, -6)\n",
+    "assert f.numerator == -4 and f.denominator == 3\n",
+    "\n",
+    "f = Fraction(-8, -6)\n",
+    "assert f.numerator == 4 and f.denominator == 3\n",
+    "\n",
+    "f = Fraction(0, 10)\n",
+    "assert f.numerator == 0 and f.denominator == 1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "f35ca159",
+   "metadata": {
+    "id": "U3fjF9QYUWPd",
+    "notebookgrader": {
+     "id": "d0979b9d8782d2043b39eb657d5e08ddfe870365",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points.\n",
+    "\n",
+    "f = Fraction(8, 6) + Fraction(25, 20)\n",
+    "assert f.numerator == 31 and f.denominator == 12\n",
+    "assert f == Fraction(31, 12)\n",
+    "assert f == Fraction(62, 24)\n",
+    "\n",
+    "assert Fraction(6, 4) + Fraction(-8, 6) == Fraction(6, 4) - Fraction(8, 6)\n",
+    "assert not (Fraction(6, 4) + Fraction(-8, 6) == Fraction(6, 5) - Fraction(8, 6))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "e2234431",
+   "metadata": {
+    "id": "qWGQUW0qXUPs",
+    "notebookgrader": {
+     "id": "12926156a8b8b0b97e30a411f3cc29446a8b20fd",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points.\n",
+    "\n",
+    "assert Fraction(3, 2) * Fraction(2, 3) == Fraction(1, 1)\n",
+    "assert Fraction(3, 2) / Fraction(2, 3) == Fraction(9, 4)\n",
+    "assert Fraction(3, 2) / Fraction(6, 4) == Fraction(1, 1)\n",
+    "assert Fraction(32, 16) == Fraction(2, 1)\n",
+    "assert not Fraction(33, 16) == Fraction(4, 2)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "f21e4474",
+   "metadata": {
+    "id": "cUiTM8hxZKna",
+    "notebookgrader": {
+     "id": "3f6a55eec7499c70c7975f6120f98ae0cd3c154e",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points.\n",
+    "\n",
+    "assert Fraction(5, 7) < Fraction(5, 6)\n",
+    "assert Fraction(-3, 2) < Fraction(0, 3)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "46c8bc00",
+   "metadata": {
+    "id": "t_CPNCFBcH9A",
+    "notebookgrader": {
+     "id": "8a9286b54c99aa6e9fe8a76a8afe86cfc6de1c43",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 5,
+     "readonly": true,
+     "test_points": 5
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 5/5 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 5 points.\n",
+    "\n",
+    "## Let's check you leave things unchanged.\n",
+    "a = Fraction(7, 8)\n",
+    "b = Fraction(-4, 5)\n",
+    "a + b\n",
+    "a / b\n",
+    "a < b\n",
+    "a * b\n",
+    "assert a == Fraction(7, 8)\n",
+    "assert b == Fraction(-4, 5)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "0f4ba0ee",
+   "metadata": {
+    "id": "TZbp0mNBbZw0",
+    "notebookgrader": {
+     "id": "ef3d50283d0004f289d00bbb68c5a68ff3c502c3",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points.\n",
+    "\n",
+    "## And finally, some random tests.\n",
+    "import random\n",
+    "for _ in range(1000):\n",
+    "    a = Fraction(random.randint(-200, 200), random.randint(1, 100))\n",
+    "    b = Fraction(random.randint(-200, 200), random.randint(1, 100))\n",
+    "    c = Fraction(random.randint(-200, 200), random.randint(1, 100))\n",
+    "    assert Fraction(-1, 1000) < (a - b) * (a - b)\n",
+    "    assert (a - b) * (a + b) == a * a - b * b\n",
+    "    z = Fraction(0, 1) # Zero, as a fraction.\n",
+    "    if not ((a == z) or (b == z) or (c == z)):\n",
+    "        assert (a / b) * b == (a / c) * c\n",
+    "        assert (a / b) * (a / c) == (a * a) / (b * c)\n",
+    "        assert (a / b) / (b / c) == (a * c) / (b * b)\n",
+    "        assert (a * a * b * c) / (a * c) == a * b"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "184f055d",
+   "metadata": {
+    "id": "At4DSjqm6vZc",
+    "notebookgrader": {
+     "id": "137a79c01e505ddbe06f3d6cd053e6466f5d1de6",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## An Int class\n",
+    "\n",
+    "To define the value 7, you can write `Fraction(14, 2)` or `Fraction(7, 1)` (it's the same), but this is a bit inconvenient.  Write a subclass `Int` of `Fraction`, so that `Int(7)` generates a fraction with value 7."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "c925d3eb",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 123,
+     "status": "ok",
+     "timestamp": 1731384871146,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "kWhXnipd7Dyw",
+    "notebookgrader": {
+     "id": "36e8a6d7d8cf8c9c8bba03e16ee21031436a7f15",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Defining an Int class\n",
+    "\n",
+    "class Int(Fraction):\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    def __init__(self, value):\n",
+    "        super().__init__(value, 1)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d9dc998e",
+   "metadata": {
+    "id": "JGBRUkIF7QCz",
+    "notebookgrader": {
+     "id": "cba9c79a633f1d5e78ac676e7984bf9d82c47652",
+     "readonly": true
+    }
+   },
+   "source": [
+    "And now for some tests."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "id": "fae82d04",
+   "metadata": {
+    "id": "6SAZP7dF7O_d",
+    "notebookgrader": {
+     "id": "d1fd728b9e00ad56e64a1d82e0ef10ac350a0b58",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points.\n",
+    "\n",
+    "assert Int(3) / Int(2) == Fraction(3, 2)\n",
+    "assert Int(3) * Int(4) / (Int(5) + Int(2)) == Fraction(12, 7)\n",
+    "assert Int(3) * Int(4) / (Int(5) + Int(1)) == Fraction(2, 1)"
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

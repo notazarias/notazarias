@@ -1,0 +1,1939 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "8c6d8c62",
+   "metadata": {
+    "id": "HfiFcAD_BDLs",
+    "notebookgrader": {
+     "id": "ceb8ff37ddf2361d127acf74561294f88e79cba7",
+     "readonly": true
+    }
+   },
+   "source": [
+    "# Graphs\n",
+    "\n",
+    "Copyright Luca de Alfaro, 2019-20.\n",
+    "License: [CC-BY-NC-ND](https://creativecommons.org/licenses/by-nc-nd/4.0/)."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c6ecb0dc",
+   "metadata": {
+    "id": "6U9mBOr2B-YS",
+    "notebookgrader": {
+     "id": "54ea730e639efd521698ff1acdd3bf9512ec9387",
+     "readonly": true
+    }
+   },
+   "source": [
+    "A (directed) graph $G = (V, E)$ consists of a set of vertices (or nodes) $V$, and a set of edges $E \\subseteq V \\times V$."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "413bd0f8",
+   "metadata": {
+    "id": "jXnZ5MLfA3MR",
+    "notebookgrader": {
+     "id": "063f77a9580d84bc3357d20ecf140a1a4aa19abf",
+     "readonly": true
+    }
+   },
+   "source": [
+    "![graph1.png](data:image/png;base64,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)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "0bfa677f",
+   "metadata": {
+    "id": "zT8kwi9fZQtS",
+    "notebookgrader": {
+     "id": "3ea01dc7670283c1d9b7a10fbd8537c22b5ecbc4",
+     "readonly": true
+    }
+   },
+   "source": [
+    "An example of a graph with $V = \\{a, b, c, d, e, f, g\\}$ and $E = \\{(a, b), (a, c), (a,d), (b,d), (c,a), (c, e), (d, b), (d, c), (f, g), (g, f)\\}$."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "bc19ec0f",
+   "metadata": {
+    "id": "OnxbBeFgcFGw",
+    "notebookgrader": {
+     "id": "dca65002ea0b8194e617aaeb9bf6211ed9d80501",
+     "readonly": true
+    }
+   },
+   "source": [
+    "How should we represent a graph?  A general principle of software development -- really, of life -- is: failing special reasons, always go for the simplest solution.\n",
+    "So our first attempt consists in storing a graph exactly according to its definition: as a set of vertices and a set of edges."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "82883549",
+   "metadata": {
+    "id": "FQ-BLoRDA-vF",
+    "notebookgrader": {
+     "id": "4c6b5048965f5a5f1db6fc37e53dc24e239ff122",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "class Graph(object):\n",
+    "\n",
+    "    def __init__(self, vertices=None, edges=None):\n",
+    "        # We use set below, just in case somebody passes a list to the initializer.\n",
+    "        self.vertices = set(vertices or [])\n",
+    "        self.edges = set(edges or [])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "4c578083",
+   "metadata": {
+    "id": "SRVjJEWmdsb4",
+    "notebookgrader": {
+     "id": "ba46c4115cd201ed6e8b0c39dc76e7e4bb1b82e1",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "g = Graph(vertices={'a', 'b', 'c', 'd', 'e', 'f', 'g'},\n",
+    "          edges={('a', 'b'), ('a', 'c'), ('a', 'd'), ('b', 'd'),\n",
+    "                 ('c', 'a'), ('c', 'e'), ('d', 'b'), ('d', 'c'),\n",
+    "                 ('f', 'g'), ('g', 'f')})"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "03617ddf",
+   "metadata": {
+    "id": "Lp9EXWSjeMKb",
+    "notebookgrader": {
+     "id": "733c17edeb8de063b9c2934de3edbfca15db67d9",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Great, but, how do we display graphs?  And what can we do with them?  \n",
+    "\n",
+    "Let's first of all add a method .show() that will enable us to look at a graph; this uses the library [networkx](https://networkx.github.io/)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "b8017881",
+   "metadata": {
+    "id": "KRMeX8prcpGb",
+    "notebookgrader": {
+     "id": "6fa63b69e903da42abbd9fab5eb5843f86c3fb5f",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import networkx as nx # Library for displaying graphs.\n",
+    "\n",
+    "class Graph(object):\n",
+    "\n",
+    "    def __init__(self, vertices=None, edges=None):\n",
+    "        # We use set below, just in case somebody passes a list to the initializer.\n",
+    "        self.vertices = set(vertices or [])\n",
+    "        self.edges = set(edges or [])\n",
+    "\n",
+    "    def show(self):\n",
+    "        g = nx.DiGraph()\n",
+    "        g.add_nodes_from(self.vertices)\n",
+    "        g.add_edges_from(self.edges)\n",
+    "        nx.draw(g, with_labels=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "5ea89d09",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 516
+    },
+    "executionInfo": {
+     "elapsed": 637,
+     "status": "ok",
+     "timestamp": 1699936101099,
+     "user": {
+      "displayName": "Oswald Campesato",
+      "userId": "15655377955162165759"
+     },
+     "user_tz": 480
+    },
+    "id": "9OResRZ8e0Qo",
+    "notebookgrader": {
+     "id": "1403b2763abac1971dde497e2355c63a8fa5d32f",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "661d4acb-52ab-4dda-d5a5-104f0fcc4374"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "g = Graph(vertices={'a', 'b', 'c', 'd', 'e', 'f', 'g'},\n",
+    "          edges={('a', 'b'), ('a', 'c'), ('a', 'd'), ('b', 'd'),\n",
+    "                 ('c', 'a'), ('c', 'e'), ('d', 'b'), ('d', 'c'),\n",
+    "                 ('f', 'g'), ('g', 'f')})\n",
+    "g.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "206f4548",
+   "metadata": {
+    "id": "Z2cZpMz0cqvO",
+    "notebookgrader": {
+     "id": "e182e35669acdf65c8d28895ea2e87d32d171190",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Ok, this is not nearly as pretty as what we generated by hand, but it will have to do."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "6d1263d4",
+   "metadata": {
+    "id": "hDI79rNngjYI",
+    "notebookgrader": {
+     "id": "ac9b47969d5dce41159ce14be1c04161416819ae",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## One-Step Reachability and Graph Representations\n",
+    "\n",
+    "What are conceivable operations on graphs?  There are some basic ones, such as adding a vertex and adding an edge.  These are easily taken care of."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "f6908d19",
+   "metadata": {
+    "id": "TJA5XYRDhLoj",
+    "notebookgrader": {
+     "id": "83b4ca461f4ce0ff7097d0c3d8e3128d072eec40",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import networkx as nx # Library for displaying graphs.\n",
+    "\n",
+    "class Graph(object):\n",
+    "\n",
+    "    def __init__(self, vertices=None, edges=None):\n",
+    "        # We use set below, just in case somebody passes a list to the initializer.\n",
+    "        self.vertices = set(vertices or [])\n",
+    "        self.edges = set(edges or [])\n",
+    "\n",
+    "    def show(self):\n",
+    "        g = nx.DiGraph()\n",
+    "        g.add_nodes_from(self.vertices)\n",
+    "        g.add_edges_from(self.edges)\n",
+    "        nx.draw(g, with_labels=True)\n",
+    "\n",
+    "    def add_vertex(self, v):\n",
+    "        self.vertices.add(v)\n",
+    "\n",
+    "    def add_edge(self, e):\n",
+    "        self.edges.add(e)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1cde9e82",
+   "metadata": {
+    "id": "oyplAl0hhG_q",
+    "notebookgrader": {
+     "id": "ef43d9aae5c1b75aff6bc27ff688dd391028b401",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Further, a graph represents a set of connections between vertices, so a very elementary question to ask is the following: if we are at vertex $v$, can we get to another vertex $u$ by following one or more edges?\n",
+    "\n",
+    "As a first step towards the solution, we want to compute the set of vertices reachable from $v$ in one step, by following one edge; we call these vertices the _successors_ of $v$.\n",
+    "\n",
+    "Writing a function g.successors(u) that returns the set of successors of $u$ is simple enough.  Note that the code directly mimicks the mathematical definition:\n",
+    "\n",
+    "$$\n",
+    "\\mathit{Successors}(u) = \\{v \\in V \\mid (u, v) \\in E\\} \\; .\n",
+    "$$"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "ed4f41a6",
+   "metadata": {
+    "id": "iMKXkV9UgIGL",
+    "notebookgrader": {
+     "id": "40c098a74764fb11b33406317b05ca029d3f9419",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import networkx as nx # Library for displaying graphs.\n",
+    "\n",
+    "class Graph(object):\n",
+    "\n",
+    "    def __init__(self, vertices=None, edges=None):\n",
+    "        # We use set below, just in case somebody passes a list to the initializer.\n",
+    "        self.vertices = set(vertices or [])\n",
+    "        self.edges = set(edges or [])\n",
+    "\n",
+    "    def show(self):\n",
+    "        g = nx.DiGraph()\n",
+    "        g.add_nodes_from(self.vertices)\n",
+    "        g.add_edges_from(self.edges)\n",
+    "        nx.draw(g, with_labels=True)\n",
+    "\n",
+    "    def add_vertex(self, v):\n",
+    "        self.vertices.add(v)\n",
+    "\n",
+    "    def add_edge(self, e):\n",
+    "        self.edges.add(e)\n",
+    "\n",
+    "    def successors(self, u):\n",
+    "        \"\"\"Returns the set of successors of vertex u\"\"\"\n",
+    "        return {v for v in self.vertices if (u, v) in self.edges}"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "02f102db",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 9,
+     "status": "ok",
+     "timestamp": 1699936101100,
+     "user": {
+      "displayName": "Oswald Campesato",
+      "userId": "15655377955162165759"
+     },
+     "user_tz": 480
+    },
+    "id": "rOLwHUvLj6mF",
+    "notebookgrader": {
+     "id": "bfaca554e8dcfc0f9b8e1f39e1fa6b24a218dc53",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "84ab0b69-0187-4031-a0cf-971d040008c4"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "g = Graph(vertices={'a', 'b', 'c', 'd', 'e', 'f', 'g'},\n",
+    "          edges={('a', 'b'), ('a', 'c'), ('a', 'd'), ('b', 'd'),\n",
+    "                 ('c', 'a'), ('c', 'e'), ('d', 'b'), ('d', 'c'),\n",
+    "                 ('f', 'g'), ('g', 'f')})\n",
+    "g.successors('a')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "30ef6970",
+   "metadata": {
+    "id": "bgY3eGh_iN_j",
+    "notebookgrader": {
+     "id": "76fc294468ef9f4bd2ae44b2e8c39ba9f87df631",
+     "readonly": true
+    }
+   },
+   "source": [
+    "But there's a rub.  The method successors, as written, requires us to loop over the whole set of vertices.  Because self.edges is a set, represented as a hash table, once we have a pair (u, v), checking\n",
+    "\n",
+    "    (v, u) in self.edges\n",
+    "    \n",
+    "is efficient.  But typically, graphs have a locality structure, so that each node is connected only to a small subset of the total vertices; having to loop over all vertices to find the successors of a vertex is a great waste.\n",
+    "It is as if I asked you to what places you can get from San Francisco with a direct flight, and to answer, you started to rattle off all of the world's cities, from Aachen, Aalborg, Aarhus, ..., all the way to Zürich, Zuwarah, Zwolle, and for each city you checked if there's a flight from San Francisco to that city!  Clearly not the best method.\n",
+    "\n",
+    "Given that our main use for graphs is to answer reachability-type questions, a better idea is to store the edges via a dictionary that associates with each vertex the set of successors of the vertex.  The vertices will simply be the keys of the dictionary.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "3c81668c",
+   "metadata": {
+    "id": "8880iQLZiH6I",
+    "notebookgrader": {
+     "id": "a0f632e275be1bcc5da2eec8281c20a417beda81",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import networkx as nx # Library for displaying graphs.\n",
+    "\n",
+    "class Graph(object):\n",
+    "\n",
+    "    def __init__(self, vertices=None, edges=None):\n",
+    "        self.s = {u: set() for u in vertices or []}\n",
+    "        for u, v in (edges or []):\n",
+    "            self.add_edge((u, v))\n",
+    "\n",
+    "    def show(self):\n",
+    "        g = nx.DiGraph()\n",
+    "        g.add_nodes_from(self.s.keys())\n",
+    "        g.add_edges_from([(u, v) for u in self.s for v in self.s[u]])\n",
+    "        nx.draw(g, with_labels=True)\n",
+    "\n",
+    "    def add_vertex(self, v):\n",
+    "        if v not in self.s:\n",
+    "            self.s[v] = set()\n",
+    "\n",
+    "    def add_edge(self, e):\n",
+    "        u, v = e\n",
+    "        self.add_vertex(u)\n",
+    "        self.add_vertex(v)\n",
+    "        self.s[u].add(v)\n",
+    "\n",
+    "    @property\n",
+    "    def vertices(self):\n",
+    "        return set(self.s.keys())\n",
+    "\n",
+    "    def successors(self, u):\n",
+    "        \"\"\"Returns the set of successors of vertex u\"\"\"\n",
+    "        return self.s[u]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "bfca9bd0",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 534
+    },
+    "executionInfo": {
+     "elapsed": 569,
+     "status": "ok",
+     "timestamp": 1699936101664,
+     "user": {
+      "displayName": "Oswald Campesato",
+      "userId": "15655377955162165759"
+     },
+     "user_tz": 480
+    },
+    "id": "Yq9PGcTsyW_h",
+    "notebookgrader": {
+     "id": "3d41a3a6f7add21344d2bbfa319763e949ffb492",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "91709e2b-5754-4626-b0ae-422ac1b36c47"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'b', 'c', 'd'}"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "g = Graph(vertices={'a', 'b', 'c', 'd', 'e', 'f', 'g'},\n",
+    "          edges={('a', 'b'), ('a', 'c'), ('a', 'd'), ('b', 'd'),\n",
+    "                 ('c', 'a'), ('c', 'e'), ('d', 'b'), ('d', 'c'),\n",
+    "                 ('f', 'g'), ('g', 'f')})\n",
+    "g.show()\n",
+    "print(g.successors('a'))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "4956b866",
+   "metadata": {
+    "id": "lpzQms7Pzok-",
+    "notebookgrader": {
+     "id": "39e77ef8906ccdee8d50f7443a577be74b5f20f9",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Graph Reachability"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "30078e26",
+   "metadata": {
+    "id": "7SFnFECwzrqh",
+    "notebookgrader": {
+     "id": "7bc17f6d4a6f426002003202e825f40f4c44bc71",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We now come to one of the fundamental graph algorithms, in fact, perhaps _the_ most fundamental algorithm for graphs: computing the set of vertices reachable from a given starting vertex.  Exploring what is reachable from a graph vertex is a truly basic task, and variations on the algorithm can be used to answer related questions, such as whether a vertex is reachable from a given starting vertex.\n",
+    "\n",
+    "The algorithm keeps two sets of vertices:\n",
+    "\n",
+    "* The set of _open_ vertices: these are the vertices that are known to be reachable, and whose successors have not yet been explored.\n",
+    "* The set of _closed_ vertices: these are the vertices that are known to be reachable, and whose successors we have already explored.\n",
+    "\n",
+    "Intially, the set of open vertices contains only the starting vertex, and the set of closed vertices is empty, as we have completed no exploration.\n",
+    "Repeatedly, we pick an open vertex, we move it to the closed set, and we put all its successor vertices -- except those that are closed already -- in the open set.   The algorithm continues until there are no more open vertices; at that point, the set of reachable vertices is equal to the closed vertices.  \n",
+    "\n",
+    "If there is _one_ graph algorithm that you must learn by heart, and that you should be able to write even when you hang upside down from monkeybars, this is it.\n",
+    "\n",
+    "Let us write the algorithm as a function first.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "1622c661",
+   "metadata": {
+    "id": "QTzzcDy5yeDR",
+    "notebookgrader": {
+     "id": "5b4a60750de17b2e146eb5a04d252a059b2f8c7f",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def reachable(g, v):\n",
+    "    \"\"\"Given a graph g, and a starting vertex v, returns the set of states\n",
+    "    reachable from v in g.\"\"\"\n",
+    "    vopen = {v}\n",
+    "    vclosed = set()\n",
+    "    while len(vopen) > 0:\n",
+    "        u = vopen.pop()\n",
+    "        vclosed.add(u)\n",
+    "        vopen.update(g.successors(u) - vclosed)\n",
+    "    return vclosed"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "id": "bd309ea8",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "executionInfo": {
+     "elapsed": 13,
+     "status": "ok",
+     "timestamp": 1699936101665,
+     "user": {
+      "displayName": "Oswald Campesato",
+      "userId": "15655377955162165759"
+     },
+     "user_tz": 480
+    },
+    "id": "t-URT5oq9MD5",
+    "notebookgrader": {
+     "id": "740c1ae1c65ae1f56751f719be662b81be3e69a8",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "95a68a32-b232-44a1-805b-342c0bed5092"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'a', 'd', 'e', 'b', 'c'}\n",
+       "{'g', 'f'}"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "print(reachable(g, 'a'))\n",
+    "print(reachable(g, 'g'))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "b4b2c16b",
+   "metadata": {
+    "id": "dcE-a6RR9v76",
+    "notebookgrader": {
+     "id": "28055abd90988e95cd2bfeb2aa07a75972763f1b",
+     "readonly": true
+    }
+   },
+   "source": [
+    "To visualize the algorithm, let us write a version where at each iteration, open vertices are drawn in red and closed ones in green"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "573bc4d1",
+   "metadata": {
+    "id": "oAeDYMlg9SBW",
+    "notebookgrader": {
+     "id": "86390b7ef0f2f965ca263688a951d0f449693af2",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import matplotlib.pyplot as plt\n",
+    "def color_draw(g, vopen, vclosed):\n",
+    "    gg = nx.DiGraph()\n",
+    "    gg.add_nodes_from(g.vertices)\n",
+    "    gg.add_edges_from([(u, v) for u in g.vertices for v in g.successors(u)])\n",
+    "    node_colors = [('r' if v in vopen else 'g' if v in vclosed else 'b')\n",
+    "                           for v in g.vertices]\n",
+    "    nx.draw(gg, with_labels=True, node_color=node_colors)\n",
+    "    plt.show()\n",
+    "\n",
+    "def reachable(g, v):\n",
+    "    \"\"\"Given a graph g, and a starting vertex v, returns the set of states\n",
+    "    reachable from v in g.\"\"\"\n",
+    "    vopen = {v}\n",
+    "    vclosed = set()\n",
+    "    color_draw(g, vopen, vclosed)\n",
+    "    while len(vopen) > 0:\n",
+    "        u = vopen.pop()\n",
+    "        vclosed.add(u)\n",
+    "        vopen.update(g.successors(u) - vclosed)\n",
+    "        color_draw(g, vopen, vclosed)\n",
+    "    return vclosed"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "id": "516fb51a",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 1000
+    },
+    "executionInfo": {
+     "elapsed": 3788,
+     "status": "ok",
+     "timestamp": 1699936105446,
+     "user": {
+      "displayName": "Oswald Campesato",
+      "userId": "15655377955162165759"
+     },
+     "user_tz": 480
+    },
+    "id": "pF1V2g3U_Rww",
+    "notebookgrader": {
+     "id": "3eb5b983e60b11a378a7ca0c4db62f0ed3a0a71d",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "e74d4a33-072a-4759-afd5-359e3d270162"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "reachable(g, 'a')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d6c7635c",
+   "metadata": {
+    "id": "iVOVspZ8Pzvd",
+    "notebookgrader": {
+     "id": "b640c75dfbd0633657b237d244981a2e6e5fbf1e",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Breadth-First and Depth-First Search\n",
+    "\n",
+    "### Breadth First\n",
+    "\n",
+    "In **breadth-first** search, we explore in concentric circles emanating from the starting point: first all vertices at distance 1, then all vertices at distance 2, and so on.  In general, we explore all vertices at distance $\\leq n$ before we explore vertices at distances $>n$.\n",
+    "\n",
+    "To implement breadth-first search, we store the open vertices `vopen` as a list rather than a set.  We then explore vertices in the order they have been added to `vopen`: this ensures that vertices closer to the search origin are explored earlier than farther-away vertices.\n",
+    "\n",
+    "The difference in code between reachability search, and its specialized breadth-first version, is minimal.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "id": "cc553b4d",
+   "metadata": {
+    "id": "RUPZkpZCRBK_",
+    "notebookgrader": {
+     "id": "c87b8dcaace50fcffce59a92caa7ec365053e954",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def breath_first(g, v):\n",
+    "    \"\"\"Given a graph g, and a starting vertex v, returns the set of states\n",
+    "    reachable from v in g.\"\"\"\n",
+    "    # vopen is a FIFO: first in, first out. Like a normal queue.\n",
+    "    # we add elements from the end, and pop them from the beginning.\n",
+    "    vopen = [v]\n",
+    "    vclosed = set()\n",
+    "    color_draw(g, vopen, vclosed)\n",
+    "    while len(vopen) > 0:\n",
+    "        u = vopen.pop(0) # Pop from the beginning\n",
+    "        vclosed.add(u)\n",
+    "        # vopen.update(g.successors(u) - vclosed)\n",
+    "        for w in g.successors(u) - vclosed:\n",
+    "            if w not in vopen:\n",
+    "                vopen.append(w) # Add to the end\n",
+    "        color_draw(g, vopen, vclosed)\n",
+    "    return vclosed"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "id": "9ce2c0ec",
+   "metadata": {
+    "id": "clVCRef1SZVh",
+    "notebookgrader": {
+     "id": "f8404caffec35d71404f1a45841a0bb29c5e5dba",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "gg = Graph(vertices={},\n",
+    "           edges={('a', 'b'), ('b', 'c'), ('c', 'd'),\n",
+    "                  ('a', 'u'), ('u', 'v'), ('v', 'w'), ('u', 'z')})"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "id": "7cae11da",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 1000
+    },
+    "executionInfo": {
+     "elapsed": 2575,
+     "status": "ok",
+     "timestamp": 1699936108013,
+     "user": {
+      "displayName": "Oswald Campesato",
+      "userId": "15655377955162165759"
+     },
+     "user_tz": 480
+    },
+    "id": "EQrkUjJUSbki",
+    "notebookgrader": {
+     "id": "f47b97bf49ce03fdb8adcedc79922401021e1a9b",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "bd48501b-681f-41f8-b7e0-3f36bf5374d6"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "breath_first(gg, 'a')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "64cb2f41",
+   "metadata": {
+    "id": "CZPuu9lzShJV",
+    "notebookgrader": {
+     "id": "53ec3f413d3bbcf85cc8212c0807437f6cfe60d7",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We see that we explore $b$ and $u$ before any of their successors are explored, and similarly, we explore $z$, $v$, and $c$ before $d$ or $w$."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "522b4760",
+   "metadata": {
+    "id": "DdL60tYDSz4c",
+    "notebookgrader": {
+     "id": "44aa0f705bd4ef9e4ab606ad9dac865b92ad1039",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Depth-First Search\n",
+    "\n",
+    "In **depth-first** search, we follow a path as long as possible, and only when we come to an end do we explore other nodes.  In depth-first search, the most recent visited vertex, the one added last to the list of open vertices, is the one that will be explored first.\n",
+    "\n",
+    "The difference in code from breadth-first search is minimal.  In breadth-first search, the vertex to be explored next is the _oldest_ among the open ones:\n",
+    "\n",
+    "        u = vopen.pop(0)\n",
+    "\n",
+    "In depth-first search, it will be the _newest_ among the open ones:\n",
+    "\n",
+    "        u = vopen.pop()\n",
+    "\n",
+    "That's the whole difference."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "id": "9f3c7321",
+   "metadata": {
+    "id": "0XeJvS2BUKqt",
+    "notebookgrader": {
+     "id": "52ce279b9ef9127caaa294312951d07a431e538a",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def depth_first(g, v):\n",
+    "    \"\"\"Given a graph g, and a starting vertex v, returns the set of states\n",
+    "    reachable from v in g.\"\"\"\n",
+    "    # vopen is a stack / LIFO: last in, first out. Like a stack.\n",
+    "    # we add elements from the end, and pop them from the end.\n",
+    "    vopen = [v]\n",
+    "    vclosed = set()\n",
+    "    color_draw(g, vopen, vclosed)\n",
+    "    while len(vopen) > 0:\n",
+    "        u = vopen.pop() # THIS is the difference: there is no 0 in the parentheses.\n",
+    "        vclosed.add(u)\n",
+    "        # vopen.update(g.successors(u) - vclosed)\n",
+    "        for w in g.successors(u) - vclosed:\n",
+    "            if w not in vopen:\n",
+    "                vopen.append(w)\n",
+    "        color_draw(g, vopen, vclosed)\n",
+    "    return vclosed"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "id": "7856e9bc",
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 1000
+    },
+    "executionInfo": {
+     "elapsed": 3045,
+     "status": "ok",
+     "timestamp": 1699936111049,
+     "user": {
+      "displayName": "Oswald Campesato",
+      "userId": "15655377955162165759"
+     },
+     "user_tz": 480
+    },
+    "id": "pJbFF87aUMsq",
+    "notebookgrader": {
+     "id": "f8179b1b62922d1f7d87ad4ac11214bb885dbb89",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    },
+    "outputId": "187134fb-d74c-47bf-d06c-5dc041c38f6e"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "depth_first(gg, 'a')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "713225ae",
+   "metadata": {
+    "id": "JPdccbBHURx3",
+    "notebookgrader": {
+     "id": "e811b91409caa8736eca352f47ee9bf07cc0253c",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We see how in depth-first search we explore completely one side of the successors of $a$, consisting of $u, v, w, z$, before exploring the other side $b, c, d$."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "81e5f032",
+   "metadata": {
+    "id": "oqCFk_8FWc57",
+    "notebookgrader": {
+     "id": "752d38b5b2bcc8fa006d29ea6e5e54ed5d72c4a9",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Efficient breadth-first search\n",
+    "\n",
+    "Our original code for breadth-first search is not very efficient.  In particular, in the loop:\n",
+    "\n",
+    "        for w in g.successors(u) - vclosed:\n",
+    "            if w not in vopen:\n",
+    "                vopen.append(w)\n",
+    "\n",
+    "the check `v not in vopen` can be quite expensive: `vopen` is now a list, and checking membership in a list takes time proportional to the length of the list, as on average half of it will need to be traversed.\n",
+    "\n",
+    "There are various ways of achieving a more efficient implementation.  One can, for instance, store the open nodes both as a list `vopen_list`, in order to keep track of their order, and as a set `vopen`, to facilitate the membership test.  Below is such an implementation."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "id": "6004613b",
+   "metadata": {
+    "id": "-bpy08crXl5h",
+    "notebookgrader": {
+     "id": "f0696b4dd2b0b082ba39c1a5931c70300a653f68",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "def efficient_breath_first(g, v):\n",
+    "    \"\"\"Given a graph g, and a starting vertex v, returns the set of states\n",
+    "    reachable from v in g.\"\"\"\n",
+    "    # vopen is a FIFO: first in, first out. Like a normal queue.\n",
+    "    # we add elements from the end, and pop them from the beginning.\n",
+    "    vopen_list = [v]\n",
+    "    vopen = {v}\n",
+    "    vclosed = set()\n",
+    "    color_draw(g, vopen, vclosed)\n",
+    "    while len(vopen) > 0:\n",
+    "        u = vopen_list.pop(0)\n",
+    "        vopen -= {u}\n",
+    "        vclosed.add(u)\n",
+    "        # Not:\n",
+    "        # new_successors = g.successors(u) - (vopen | vclosed)\n",
+    "        # new_successors = g.successors(u) - vopen - vclosed\n",
+    "        # {w for w in g.successors(u) if w not in vclosed | vopen)}\n",
+    "        new_successors = {w for w in g.successors(u) if not (w in vclosed) or (w in vopen)}\n",
+    "        vopen.update(new_successors)\n",
+    "        vopen_list.extend(new_successors)\n",
+    "        color_draw(g, vopen, vclosed)\n",
+    "    return vclosed"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2cf631df",
+   "metadata": {
+    "id": "Ee8p3fMdXqR7",
+    "notebookgrader": {
+     "id": "3f0f58acd8e4fcc512d84d42dcdb6dd0ae10cd93",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We also noted some versions of the check at line 18 that are potentially less efficient.  For instance,\n",
+    "\n",
+    "    new_successors = g.successors(u) - (vopen | vclosed)\n",
+    "\n",
+    "would require the computation of the set `vopen | vclosed`, which is potentially large.  The efficiency of\n",
+    "\n",
+    "    new_successors = g.successors(u) - vopen - vclosed\n",
+    "\n",
+    "depends on how the set difference operation is implemented in Python: specifically, when you have $A - B$, does Python:\n",
+    "\n",
+    "1. Iterate over $A$, returning all elements of $A$ that do not occur in $B$:\n",
+    "\n",
+    "        {x for x in A if x not in B}\n",
+    "\n",
+    "2. Iterate over $B$, removing each element in $B$ from those of $A$:\n",
+    "\n",
+    "        R = set(A)\n",
+    "        for x in B:\n",
+    "            R.discard(x)\n",
+    "        return R\n",
+    "\n",
+    "Obviously, 1. is more efficient if $|B| > |A|$, and 2. is more efficient when $|A| > |B|$.  So relying on set difference would put us at the mercy of the Python implementation.  Finally,\n",
+    "\n",
+    "    {w for w in g.successors(u) if w not in vclosed | vopen)}\n",
+    "\n",
+    "is a disastrous choice, as it calls for computing `vclosed | vopen`, which as mentioned can be very large.  Our chosen solution\n",
+    "\n",
+    "    new_successors = {w for w in g.successors(u) if not (w in vclosed) or (w in vopen)}\n",
+    "\n",
+    "guarantees efficiency if `g.successors(u)` is smaller than `vclosed` and `vopen`, which is usually the case.\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1f5f8a76",
+   "metadata": {
+    "id": "19j4UA-PAh80",
+    "notebookgrader": {
+     "id": "64e2ef30ad602b244b595e8f3dc2c95713a3191e",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Reachability as a method\n",
+    "\n",
+    "Let's now endow our graph with a method that yields the vertices reachable from any given starting vertex."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "id": "a54eab15",
+   "metadata": {
+    "id": "BJekfXqb_UeF",
+    "notebookgrader": {
+     "id": "40fd36ca1a9580d152818c89b0c6f57f57be439a",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import networkx as nx # Library for displaying graphs.\n",
+    "\n",
+    "class Graph(object):\n",
+    "\n",
+    "    def __init__(self, vertices=None, edges=None):\n",
+    "        self.s = {u: set() for u in vertices or []}\n",
+    "        for u, v in (edges or []):\n",
+    "            self.add_edge((u, v))\n",
+    "\n",
+    "    def show(self):\n",
+    "        g = nx.DiGraph()\n",
+    "        g.add_nodes_from(self.s.keys())\n",
+    "        g.add_edges_from([(u, v) for u in self.s for v in self.s[u]])\n",
+    "        nx.draw(g, with_labels=True)\n",
+    "\n",
+    "    def add_vertex(self, v):\n",
+    "        if v not in self.s:\n",
+    "            self.s[v] = set()\n",
+    "\n",
+    "    def add_edge(self, e):\n",
+    "        u, v = e\n",
+    "        self.add_vertex(u)\n",
+    "        self.add_vertex(v)\n",
+    "        self.s[u].add(v)\n",
+    "\n",
+    "    @property\n",
+    "    def vertices(self):\n",
+    "        return set(self.s.keys())\n",
+    "\n",
+    "    def successors(self, u):\n",
+    "        \"\"\"Returns true iff one can get from vertex v to vertex u by following\n",
+    "        one edge.\"\"\"\n",
+    "        return self.s[u]\n",
+    "\n",
+    "    def __eq__(self, other):\n",
+    "        \"\"\"We need to define graph equality.\"\"\"\n",
+    "        if self.vertices != other.vertices:\n",
+    "            return False\n",
+    "        for v, d in self.s.items():\n",
+    "            if d != other.s[v]:\n",
+    "                return False\n",
+    "        return True\n",
+    "\n",
+    "    def __repr__(self):\n",
+    "        r = \"Graph:\"\n",
+    "        for v in self.vertices:\n",
+    "            r += \"\\n %r : %r\" % (v, self.s.get(v))\n",
+    "        return r\n",
+    "\n",
+    "    def show(self):\n",
+    "        g = nx.DiGraph()\n",
+    "        g.add_nodes_from(self.vertices)\n",
+    "        g.add_edges_from([(u, v) for u in self.vertices for v in self.s[u]])\n",
+    "        nx.draw(g, with_labels=True)\n",
+    "\n",
+    "    def add_vertex(self, v):\n",
+    "        self.vertices.add(v)\n",
+    "        # We must be careful not to overwrite the successor relation\n",
+    "        # in case v might already be present in the graph.\n",
+    "        self.s[v] = self.s.get(v, set())\n",
+    "\n",
+    "    def add_edge(self, e):\n",
+    "        \"\"\"Adds an edge e = (u, v) between two vertices u, v.  If the\n",
+    "        two vertices are not already in the graph, adds them.\"\"\"\n",
+    "        u, v = e\n",
+    "        self.vertices.update({u, v})\n",
+    "        # Initializes the successor function if needed.\n",
+    "        self.s[u] = self.s.get(u, set()) | {v}\n",
+    "        self.s[v] = self.s.get(v, set())\n",
+    "\n",
+    "    def successors(self, u):\n",
+    "        \"\"\"Returns the set of successors of a vertex u\"\"\"\n",
+    "        return self.s[u]\n",
+    "\n",
+    "    def reachable(self, v):\n",
+    "        \"\"\"Returns the set of vertices reachable from an initial vertex v.\"\"\"\n",
+    "        vopen = {v}\n",
+    "        vclosed = set()\n",
+    "        while len(vopen) > 0:\n",
+    "            u = vopen.pop()\n",
+    "            vclosed.add(u)\n",
+    "            vopen.update(self.s[u] - vclosed)\n",
+    "        return vclosed"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f5fa4e5b",
+   "metadata": {
+    "id": "DspGluyXT8ev",
+    "notebookgrader": {
+     "id": "7ed5a296cdd07983da26fe77027e27b6284fcdc7",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Testing the implementation\n",
+    "\n",
+    "This seems to be a reasonable implementation.  Let us do some tests, to check that everything works as expected.  The nose tools are very handy for testing.\n",
+    "We have written a _check function that enables us to test whether the definition of a graph is self consistent.  Writing such consistency checks is very useful.  In development, we may call them often.  In production code, we may choose to call them at key points in the code, to prevent the propagation of errors to distant places in the code."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "id": "63c905cb",
+   "metadata": {
+    "id": "M4uuKX3XUP7z",
+    "notebookgrader": {
+     "id": "af7604771a9412716381bbd944b5cede0d8e6044",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import random"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f3b9ff45",
+   "metadata": {
+    "id": "m_ePw92iUcf8",
+    "notebookgrader": {
+     "id": "54a3d143f19f3a6e28702f765f85df137cd429a9",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let's build constructors for random graphs."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "id": "5b2e570b",
+   "metadata": {
+    "id": "6ltvCV_8Ugnr",
+    "notebookgrader": {
+     "id": "1b0592839a258cae106aad3eab6015fef3711408",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "vertices = list('abcdefghilmnopqrstuvz')\n",
+    "\n",
+    "def random_vertices():\n",
+    "    \"\"\"Returns a set of random vertices.\"\"\"\n",
+    "    return set(random.choices(vertices, k=12))\n",
+    "\n",
+    "def random_edges(vs):\n",
+    "    \"\"\"Returns a set of random edges, given a set of vertices.\"\"\"\n",
+    "    vxv = [(u, v) for u in vs for v in vs]\n",
+    "    return set(random.choices(vxv, k=min(len(vxv), 50)))\n",
+    "\n",
+    "def random_graph():\n",
+    "    vs = random_vertices()\n",
+    "    e = random_edges(vs)\n",
+    "    return Graph(vertices=vs, edges=e)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "934227bc",
+   "metadata": {
+    "id": "Jto6kzehUjp_",
+    "notebookgrader": {
+     "id": "ea9cbd5bc8118206e90d5d70c43a69203b815ca5",
+     "readonly": true
+    }
+   },
+   "source": [
+    "We can create random graphs."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "id": "caa430c4",
+   "metadata": {
+    "id": "-p76paNc5MFw",
+    "notebookgrader": {
+     "id": "b1ba227118757b62840cf139c770bb6515f92c27",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "for _ in range(100):\n",
+    "    g = Graph()\n",
+    "    vs = random_vertices()\n",
+    "    es = random_edges(vs)\n",
+    "    for e in es:\n",
+    "        g.add_edge(e)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "8e1c6a98",
+   "metadata": {
+    "id": "EM72fHTi5qrb",
+    "notebookgrader": {
+     "id": "6a8b86629186cbe5fd431d8d6db476f261ff50d8",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Let's check that the graph we obtain does not depend on the order with which we add the vertices and edges."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "id": "897e6d66",
+   "metadata": {
+    "id": "P31l-hB651c1",
+    "notebookgrader": {
+     "id": "55b7a9c9b20fe23b63cbfc09db24847f07cc3774",
+     "is_solution": false,
+     "is_tests": false,
+     "readonly": true
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "for _ in range(100):\n",
+    "    vs = random_vertices()\n",
+    "    es = list(random_edges(vs))\n",
+    "    g1 = Graph(vertices=vs, edges=es)\n",
+    "    g2 = Graph(vertices=vs)\n",
+    "    g3 = Graph(vertices=vs)\n",
+    "    esp = es[:] # Creates a copy.\n",
+    "    random.shuffle(esp)\n",
+    "    for e in es:\n",
+    "        g2.add_edge(e)\n",
+    "    for e in esp:\n",
+    "        g3.add_edge(e)\n",
+    "    assert g1 == g2\n",
+    "    assert g1 == g3"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "150c86d2",
+   "metadata": {
+    "id": "O9V6ZTudeAuL",
+    "notebookgrader": {
+     "id": "6af3c3d9505a46b1047d73ede2e0dd934ea51b93",
+     "readonly": true
+    }
+   },
+   "source": [
+    "**Excerise:** Implement graph difference."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "68c72c23",
+   "metadata": {
+    "id": "6UWRKjPO104j",
+    "notebookgrader": {
+     "id": "d7df3d0f3ae198c902fce0d8422431fb79d80432",
+     "readonly": true
+    }
+   },
+   "source": [
+    "**Exercise:** Implement graph union.\n",
+    "\n",
+    "Write a `union` method for a graph so that, for $G_1 = (V_1, E_1)$ and $G_2 = (V_2, E_2)$, with $G_1$ represented by `g1` in code and $G_2$ represented by `g2`,\n",
+    "\n",
+    "    g1 | g2\n",
+    "\n",
+    "returns the graph $G_{12} = (V_1 \\cup V_2, E_1 \\cup E_2)$ having as vertices the union of the vertices of $G_1$ and $G_2$, and as edges the union of the edges of $G_1$ and $G_2$.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c459c092",
+   "metadata": {
+    "id": "uXKIbX9qiJw4",
+    "notebookgrader": {
+     "id": "de1d6d0b41cdf799384842a9e2e1d61b866a0f16",
+     "readonly": true
+    }
+   },
+   "source": [
+    "### Returning the edges\n",
+    "\n",
+    "In our latest implementation, we do not have direct access to the edges of the graph.  In other words, for a graph g, we cannot do:\n",
+    "\n",
+    "    for (u, v) in g.edges:\n",
+    "        ...\n",
+    "\n",
+    "We ask you to write an iterator over edges, to make the above code work.  The iterator should yield the edges of the graph, one by one."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "id": "be4ab9ac",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 5,
+     "status": "ok",
+     "timestamp": 1731454935894,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "O1fiuO6uihxj",
+    "notebookgrader": {
+     "id": "bd9d1e4accc445504a1ca2accd68207110931748",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title An iterator for the set of edges\n",
+    "\n",
+    "def graph_edges(self):\n",
+    "    \"\"\"Yields the edges of the graph, one by one.  Each edge is yielded as a\n",
+    "    pair of vertices (source, destination). \"\"\"\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    for edge in self.s:\n",
+    "        for vert in self.s[edge]:\n",
+    "            yield (edge, vert)\n",
+    "\n",
+    "Graph.edges = property(graph_edges)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e1a15cbd",
+   "metadata": {
+    "id": "dW5mndd6jL8j",
+    "notebookgrader": {
+     "id": "b521f9ca962e0e073f57228a08657bd4e8ebffcf",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Here are some tests."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 52,
+   "id": "fdc313d7",
+   "metadata": {
+    "id": "GhLmeGejjITp",
+    "notebookgrader": {
+     "id": "971e0997c9f77101f877af8b331fd850e0f3fcce",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points.\n",
+    "\n",
+    "e = [(1, 2), (1, 3), (2, 3)]\n",
+    "g = Graph(vertices=[1, 2, 3], edges=e)\n",
+    "assert set(g.edges) == set(e)\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "dfdbe83d",
+   "metadata": {
+    "id": "bwK3wntMjdgU",
+    "notebookgrader": {
+     "id": "8404668d58c64fffb1779f36a3f8232a2a399127",
+     "readonly": true
+    }
+   },
+   "source": [
+    "Here are some randomized test."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 54,
+   "id": "f37b26a3",
+   "metadata": {
+    "id": "g53KEKOEjgOF",
+    "notebookgrader": {
+     "id": "70a12364f79614c303db2e49132531a120823ae9",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points.\n",
+    "\n",
+    "import random\n",
+    "\n",
+    "for _ in range(10):\n",
+    "    num_vertices = random.randint(4, 10)\n",
+    "    num_edges = random.randint(1, num_vertices * num_vertices)\n",
+    "    vertices = random.sample(range(0, 1000), num_vertices)\n",
+    "    edges = {(random.choice(vertices), random.choice(vertices)) for _ in range(num_edges)}\n",
+    "    g = Graph(vertices=vertices, edges=edges)\n",
+    "    assert set(g.edges) == edges\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e8b8d9af",
+   "metadata": {
+    "id": "mvEJkTSr3gc-",
+    "notebookgrader": {
+     "id": "aba263f69cb72d5cf562e051fd6f2d0855573b55",
+     "readonly": true
+    }
+   },
+   "source": [
+    "## Is a graph a tree?\n",
+    "\n",
+    "A tree is a graph $(V, E)$ with two special properties:\n",
+    "\n",
+    "* Every vertex has at most one incoming edge.\n",
+    "* Either there are no vertices, or there is a vertex with no incoming edges, called the _root_, from which all other vertices are reachable.\n",
+    "\n",
+    "If the second property does not hold, incidentally, the graph is called a _forest._\n",
+    "\n",
+    "Write an `is_tree` property that has value True if the graph is a tree, and has value False otherwise."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "id": "4dc09757",
+   "metadata": {
+    "executionInfo": {
+     "elapsed": 194,
+     "status": "ok",
+     "timestamp": 1731462953596,
+     "user": {
+      "displayName": "Azarias Ashenafi",
+      "userId": "07661282689053385655"
+     },
+     "user_tz": 480
+    },
+    "id": "DUnzWvHuyd_j",
+    "notebookgrader": {
+     "id": "d4afb3c642c948f6c38d13259d23af2b98032010",
+     "is_solution": true,
+     "is_tests": false,
+     "readonly": false
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#@title Implementation of tree test\n",
+    "\n",
+    "def graph_is_tree(self):\n",
+    "    \"\"\"Returns True iff the graph is a tree.\"\"\"\n",
+    "    ### YOUR SOLUTION HERE\n",
+    "    edges = {}\n",
+    "    for v in self.vertices:\n",
+    "        edges[v] = 0\n",
+    "\n",
+    "    for u, v in self.edges:\n",
+    "        edges[v] += 1\n",
+    "\n",
+    "        if edges[v] > 1:\n",
+    "            return False\n",
+    "\n",
+    "    if not self.vertices:\n",
+    "        return True\n",
+    "\n",
+    "    roots = []\n",
+    "    for v, count in edges.items():\n",
+    "        if count == 0:\n",
+    "            roots.append(v)\n",
+    "\n",
+    "    if len(roots) != 1:\n",
+    "        return False\n",
+    "\n",
+    "    root = roots[0]\n",
+    "    r_v = self.reachable(root)\n",
+    "    if r_v != self.vertices:\n",
+    "        return False\n",
+    "\n",
+    "    return True\n",
+    "\n",
+    "Graph.is_tree = property(graph_is_tree)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 58,
+   "id": "0f8be239",
+   "metadata": {
+    "cellView": "form",
+    "id": "X5f3SYxs7cu8",
+    "notebookgrader": {
+     "id": "83cf5caefc16c35e17fbb1f75b280be9233f95e3",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: is_tree\n",
+    "\n",
+    "g = Graph(vertices=[1, 2, 3], edges=[(1, 2), (1, 3)])\n",
+    "assert g.is_tree\n",
+    "g = Graph(vertices=[1, 2, 3], edges=[(1, 2), (2, 3), (1, 3)])\n",
+    "assert not g.is_tree\n",
+    "g = Graph(vertices=[1, 2, 3], edges=[(1, 3), (2, 3)])\n",
+    "assert not g.is_tree\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 60,
+   "id": "92fbe79f",
+   "metadata": {
+    "cellView": "form",
+    "id": "5Fy3cVLR8gY2",
+    "notebookgrader": {
+     "id": "630d70b09fd0656c75adbd8ad5e19058d1dae506",
+     "is_solution": false,
+     "is_tests": true,
+     "points_earned": 10,
+     "readonly": true,
+     "test_points": 10
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<b>Tests passed, you earned 10/10 points</b>"
+      ]
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": null,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Tests 10 points: More tests for is_tree\n",
+    "\n",
+    "g = Graph()\n",
+    "assert g.is_tree\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "5711eeae",
+   "metadata": {
+    "id": "WkRle2jsaG2M",
+    "notebookgrader": {
+     "id": "4d5b72fe8a7e1b7b0b405a15c9ffbcfba8e17ba5",
+     "readonly": true
+    }
+   },
+   "source": [
+    "**Exercise:** Write a function `number_of_islands` that counts the number of islands of horizonally-or-vertically connected 1s in a matrix of 0, 1 elements."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "bb4a5c5d",
+   "metadata": {
+    "id": "7kUyE5x7-hQM",
+    "notebookgrader": {
+     "id": "229f857e570b16f2e458db166f46762aac38025b",
+     "readonly": true
+    }
+   },
+   "source": [
+    "**Exercise:** Write a `has_loop` method that checks whether a graph has a loop."
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
