@@ -1,6 +1,8 @@
 ## Hi there 👋
 
-- 🔭 I’m currently working on CSE 12 - Computer Systems and Assembly Language and Lab
+My name is Azarias Ashenafi, and I'm a freshman at the University of California Santa Cruz, UCSC. 
+
+- 🔭 I’m currently learning about CSE 12 - Computer Systems and Assembly Language and Lab
 - 🌱 I’m currently learning: Google Colab
 - 📫 How to reach me: azarias.ash@gmail.com 
 - 😄 Pronouns: He/Him
