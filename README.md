@@ -2,10 +2,10 @@
 
 My name is Azarias Ashenafi, and I'm a freshman at the University of California Santa Cruz, UCSC. 
 
-- 🔭 I’m currently learning about CSE 12 - Computer Systems and Assembly Language and Lab
-- 🌱 I’m currently learning: Google Colab
-- 📫 How to reach me: azarias.ash@gmail.com 
-- 😄 Pronouns: He/Him
+-  I’m currently learning about CSE 12 - Computer Systems and Assembly Language and Lab
+-  I’m currently learning: Google Colab
+-  How to reach me: azarias.ash@gmail.com 
+-  Pronouns: He/Him
 <!--
 **notazarias/notazarias** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
