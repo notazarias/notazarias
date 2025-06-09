@@ -2,8 +2,8 @@
 
 My name is Azarias Ashenafi, and I'm a freshman at the University of California Santa Cruz, UCSC. 
 
--  I’m currently learning about CSE 12 - Computer Systems and Assembly Language and Lab
--  I’m currently learning: Google Colab
+-  I’m currently learning about CSE 16 & AM 10 - Applied Discrete Mathematics and Linear Algebra for Engineers
+- 🔭 I’m currently working on a website for the SJSU canoe page. 
 -  How to reach me: azarias.ash@gmail.com 
 -  Pronouns: He/Him
 <!--
